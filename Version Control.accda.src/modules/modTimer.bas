@@ -1,8 +1,8 @@
 Option Explicit
 Option Private Module
 
-Private Declare PtrSafe Function SetTimer Lib "user32" (ByVal hwnd As LongPtr, ByVal nIDEvent As Long, ByVal uElapse As Long, ByVal lpTimerFunc As LongPtr) As LongPtr
-Private Declare PtrSafe Function KillTimer Lib "user32" (ByVal hwnd As LongPtr, ByVal nIDEvent As Long) As Long
+Private Declare PtrSafe Function SetTimer Lib "user32" (ByVal hWnd As LongPtr, ByVal nIDEvent As Long, ByVal uElapse As Long, ByVal lpTimerFunc As LongPtr) As LongPtr
+Private Declare PtrSafe Function KillTimer Lib "user32" (ByVal hWnd As LongPtr, ByVal nIDEvent As Long) As Long
 
 Private m_lngBuildTimerID As Long
 
@@ -15,7 +15,7 @@ Private m_lngBuildTimerID As Long
 '---------------------------------------------------------------------------------------
 '
 Public Sub RunBuildAfterClose(strSourceFolder As String)
-    m_lngBuildTimerID = SetTimer(0, 0, 1000, AddressOf BuildTimerCallback)
+    m_lngBuildTimerID = 1  'SetTimer(0, 0, 1000, AddressOf BuildTimerCallback)
     ' We will also lose the TimerID private variable value, so save it to registry as well.
     SaveSetting GetCodeVBProject.Name, "Build", "TimerID", m_lngBuildTimerID
     SaveSetting GetCodeVBProject.Name, "Build", "SourceFolder", strSourceFolder
