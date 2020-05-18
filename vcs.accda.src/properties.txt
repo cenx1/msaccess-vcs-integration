@@ -1,0 +1,26 @@
+Connect??12
+Transactions?True?1
+Updatable?True?1
+CollatingOrder?1044?3
+QueryTimeout?60?3
+Version?14.0?12
+RecordsAffected?0?4
+ReplicaID??15
+DesignMasterID??15
+Connection??0
+AccessVersion?09.50?10
+NavPane Category?0?4
+HasOfflineLists?70?3
+StartUpShowDBWindow?True?1
+StartUpShowStatusBar?True?1
+AllowShortcutMenus?True?1
+AllowFullMenus?True?1
+AllowBuiltInToolbars?True?1
+AllowToolbarChanges?True?1
+AllowSpecialKeys?True?1
+UseAppIconForFrmRpt?False?1
+UseMDIMode?0?2
+ShowDocumentTabs?True?1
+AllowDatasheetSchema?True?1
+Show Values in Indexed?1?4
+Show Values in

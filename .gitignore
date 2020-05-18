@@ -1,8 +1,15 @@
 *.komodoproject
 
+<<<<<<< HEAD
 # Database lock files
 *.laccdb
 
 # Comment out the following line if you wish to include the log files in git.
 Export.log
 Import.log
+=======
+*.accdb
+*.laccdb
+
+*.log
+>>>>>>> 878c8ffba6ff380e787032a324d6c664f2879ce7
