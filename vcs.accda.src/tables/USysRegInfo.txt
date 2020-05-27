@@ -1,7 +1,0 @@
-Subkey	Type	ValName	Value
-HKEY_CURRENT_ACCESS_PROFILE\\Menu Add-ins\\VCS &Export All Source	0		
-HKEY_CURRENT_ACCESS_PROFILE\\Menu Add-ins\\VCS &Export All Source	1	Expression	=AddInMenuItemExport()
-HKEY_CURRENT_ACCESS_PROFILE\\Menu Add-ins\\VCS &Export All Source	1	Library	|ACCDIR\\vcs.accda
-HKEY_CURRENT_ACCESS_PROFILE\\Menu Add-ins\\VCS &Version Control	0		
-HKEY_CURRENT_ACCESS_PROFILE\\Menu Add-ins\\VCS &Version Control	1	Expression	=AddInMenuItemLaunch()
-HKEY_CURRENT_ACCESS_PROFILE\\Menu Add-ins\\VCS &Version Control	1	Library	|ACCDIR\\vcs.accda
