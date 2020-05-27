@@ -50,7 +50,7 @@ Private Sub IDbComponent_Export()
         VerifyPath FSO.GetParentFolderName(strFile)
     
         ' Save structure in XML format
-        Application.ExportXML acExportTable, m_Table.Name, , strFile
+        Application.ExportXML acExportTable, m_Table.Name, , strFile ', , , , acExportAllTableAndFieldProperties ' Add support for this later.
     
     Else
         ' Linked table - Save as JSON
@@ -377,20 +377,18 @@ Private Function IDbComponent_GetAllFromDB() As Collection
     
     Dim tdf As TableDef
     Dim cTable As IDbComponent
-
+    
     ' Build collection if not already cached
     If m_AllItems Is Nothing Then
         Set m_AllItems = New Collection
         Set m_Dbs = CurrentDb
-            
         For Each tdf In m_Dbs.TableDefs
-            ' Skip system and temp tables
-            If Left$(tdf.Name, 4) <> "MSys" Then
-                If Left$(tdf.Name, 1) <> "~" Then
-                    Set cTable = New clsDbTableDef
-                    Set cTable.DbObject = tdf
-                    m_AllItems.Add cTable, tdf.Name
-                End If
+            If tdf.Name Like "MSys*" Or tdf.Name Like "~*" Then
+                ' Skip system and temporary tables
+            Else
+                Set cTable = New clsDbTableDef
+                Set cTable.DbObject = tdf
+                m_AllItems.Add cTable, tdf.Name
             End If
         Next tdf
     End If

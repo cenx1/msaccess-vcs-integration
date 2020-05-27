@@ -57,7 +57,6 @@ Private Sub IDbComponent_Export()
         .Add "Attributes", m_Relation.Attributes
         .Add "Table", m_Relation.Table
         .Add "ForeignTable", m_Relation.ForeignTable
-        .Add "PartialReplica", m_Relation.PartialReplica
     End With
     
     ' Fields
@@ -103,7 +102,6 @@ Private Sub IDbComponent_Import(strFile As String)
         Set dItem = dFile("Items")
         Set rel = dbs.CreateRelation(dItem("Name"), dItem("Table"), dItem("ForeignTable"))
         rel.Attributes = dItem("Attributes")
-        'rel.PartialReplica = dItem("PartialReplica")
         
         ' Add fields, and append to relation
         For Each dField In dItem("Fields")
@@ -179,7 +177,7 @@ Private Sub ImportRelation(ByRef filePath As String, Optional ByRef appInstance 
     Dim newRelation As Relation
     Set newRelation = thisDb.CreateRelation(fileLines(1), fileLines(2), fileLines(3), fileLines(0))
     
-    Dim newField As Field
+    Dim newField As DAO.Field
     Dim thisLine As Long
     For thisLine = 4 To UBound(fileLines)
         If "Field = Begin" = fileLines(thisLine) Then

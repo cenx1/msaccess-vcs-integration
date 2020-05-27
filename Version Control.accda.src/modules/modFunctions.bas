@@ -1193,24 +1193,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Public Function GetVBProjectForCurrentDB() As VBProject
-
-    Dim objProj As Object
-    Dim strPath As String
-    
-    strPath = CurrentProject.FullName
-    If VBE.ActiveVBProject.FileName = strPath Then
-        ' Use currently active project
-        Set GetVBProjectForCurrentDB = VBE.ActiveVBProject
-    Else
-        ' Search for project with matching filename.
-        For Each objProj In VBE.VBProjects
-            If objProj.FileName = strPath Then
-                Set GetVBProjectForCurrentDB = objProj
-                Exit For
-            End If
-        Next objProj
-    End If
-    
+    Set GetVBProjectForCurrentDB = GetProjectByName(CurrentProject.FullName)
 End Function
 
 
@@ -1222,24 +1205,34 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Public Function GetCodeVBProject() As VBProject
+    Set GetCodeVBProject = GetProjectByName(CodeProject.FullName)
+End Function
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetProjectByName
+' Author    : Adam Waller
+' Date      : 5/26/2020
+' Purpose   : Return the VBProject by file path.
+'---------------------------------------------------------------------------------------
+'
+Private Function GetProjectByName(ByVal strPath As String) As VBProject
 
     Dim objProj As VBIDE.VBProject
-    Dim strPath As String
+        
+    ' Use currently active project by default
+    Set GetProjectByName = VBE.ActiveVBProject
     
-    strPath = CodeProject.FullName
-    If VBE.ActiveVBProject.FileName = strPath Then
-        ' Use currently active project
-        Set GetCodeVBProject = VBE.ActiveVBProject
-    Else
+    If VBE.ActiveVBProject.FileName <> strPath Then
         ' Search for project with matching filename.
         For Each objProj In VBE.VBProjects
             If objProj.FileName = strPath Then
-                Set GetCodeVBProject = objProj
+                Set GetProjectByName = objProj
                 Exit For
             End If
         Next objProj
     End If
-
+    
 End Function
 
 

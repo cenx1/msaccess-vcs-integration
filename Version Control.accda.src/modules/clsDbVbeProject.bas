@@ -39,8 +39,8 @@ Private Sub IDbComponent_Export()
         .Add "Name", m_Project.Name
         .Add "Description", m_Project.Description
         .Add "FileName", GetRelativePath(m_Project.FileName)
-        .Add "HelpContextId", m_Project.HelpContextId
         .Add "HelpFile", m_Project.HelpFile
+        .Add "HelpContextId", m_Project.HelpContextId
         .Add "Mode", m_Project.Mode
         .Add "Protection", m_Project.Protection
         .Add "Type", m_Project.Type
@@ -68,7 +68,20 @@ Private Sub IDbComponent_Import(strFile As String)
     With GetVBProjectForCurrentDB
         .Name = dNZ(dProject, "Items\Name")
         .Description = dNZ(dProject, "Items\Description")
+        
+        ' Setting the HelpContextId can throw random automation errors.
+        ' The setting does change despite the error.
+        Dim HelpID As Variant
+        HelpID = dNZ(dProject, "Items\HelpContextId")
+        On Error Resume Next
         .HelpContextId = dNZ(dProject, "Items\HelpContextId")
+        If Err.Number <> 0 Then
+            ' If we failed to set the ID then it was a real error, throw it
+            If .HelpContextId <> HelpID Then Err.Raise Err.Number, , Err.Description
+            Err.Clear
+        End If
+        On Error GoTo 0
+        
         .HelpFile = dNZ(dProject, "Items\HelpFile")
         ' // Read-only properties
         '.FileName = dNZ(dProject, "Items\FileName")
