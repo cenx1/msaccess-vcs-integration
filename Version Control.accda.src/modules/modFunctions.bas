@@ -88,7 +88,7 @@ Public Sub SanitizeFile(strPath As String)
     Dim objMatches As VBScript_RegExp_55.MatchCollection
     Dim blnIsReport As Boolean
     Dim cPattern As New clsConcat
-    Dim stmInFile As Scripting.TextStream
+    Dim stmInFile As ADODB.Stream
     Dim blnGetLine As Boolean
     
     On Error GoTo 0
@@ -134,21 +134,24 @@ Public Sub SanitizeFile(strPath As String)
     End With
     
     ' Open file to read contents line by line.
-    Set stmInFile = FSO.OpenTextFile(strPath, ForReading)
+    Set stmInFile = New ADODB.Stream
+    stmInFile.Charset = "UTF-8"
+    stmInFile.Open
+    stmInFile.LoadFromFile strPath
     
     ' Skip past UTF-8 BOM header
-    strText = stmInFile.ReadLine
+    strText = stmInFile.ReadText(-2)
     If Left(strText, 3) = "﻿" Then strText = Mid(strText, 4)
 
     ' Loop through lines in file
-    Do Until stmInFile.AtEndOfStream
+    Do Until stmInFile.EOS
     
         ' Show progress increment during longer conversions
         Log.Increment
     
         ' Check if we need to get a new line of text
         If blnGetLine Then
-            strText = stmInFile.ReadLine
+            strText = stmInFile.ReadText(-2)
         Else
             blnGetLine = True
         End If
@@ -172,8 +175,8 @@ Public Sub SanitizeFile(strPath As String)
             rxIndent.Pattern = rxIndent.Pattern & "\S"
             
             ' Skip lines with deeper indentation
-            Do While Not stmInFile.AtEndOfStream
-                strText = stmInFile.ReadLine
+            Do While Not stmInFile.EOS
+                strText = stmInFile.ReadText(-2)
                 If rxIndent.Test(strText) Then Exit Do
             Loop
             
@@ -183,8 +186,8 @@ Public Sub SanitizeFile(strPath As String)
         
         ' Skip blocks of code matching block pattern
         ElseIf rxBlock.Test(strText) Then
-            Do While Not stmInFile.AtEndOfStream
-                strText = stmInFile.ReadLine
+            Do While Not stmInFile.EOS
+                strText = stmInFile.ReadText(-2)
                 If InStr(strText, "End") Then Exit Do
             Loop
         
@@ -235,7 +238,7 @@ Public Sub SanitizeXML(strPath As String, Options As clsOptions)
     Dim strText As String
     Dim rxLine As VBScript_RegExp_55.RegExp
     Dim objMatches As VBScript_RegExp_55.MatchCollection
-    Dim stmInFile As Scripting.TextStream
+    Dim stmInFile As ADODB.Stream
     Dim blnFound As Boolean
     
     On Error GoTo 0
@@ -252,14 +255,19 @@ Public Sub SanitizeXML(strPath As String, Options As clsOptions)
     rxLine.Pattern = "^\s*(?:<dataroot xmlns:(.+))( generated="".+"")"
     
     ' Open file to read contents line by line.
-    Set stmInFile = FSO.OpenTextFile(strPath, ForReading)
-
+    Set stmInFile = New ADODB.Stream
+    stmInFile.Charset = "UTF-8"
+    stmInFile.Open
+    stmInFile.LoadFromFile strPath
+    strText = stmInFile.ReadText(-2)
+    
+    
     ' Loop through all the lines in the file
-    Do Until stmInFile.AtEndOfStream
+    Do Until stmInFile.EOS
         
         ' Read line from file
-        strText = stmInFile.ReadLine
-                 
+        strText = stmInFile.ReadText(-2)
+        If Left(strText, 3) = "﻿" Then strText = Mid(strText, 4)
         ' Just looking for the first match.
         If Not blnFound Then
         
@@ -1193,7 +1201,24 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Public Function GetVBProjectForCurrentDB() As VBProject
-    Set GetVBProjectForCurrentDB = GetProjectByName(CurrentProject.FullName)
+
+    Dim objProj As Object
+    Dim strPath As String
+    
+    strPath = CurrentProject.FullName
+    If VBE.ActiveVBProject.FileName = strPath Then
+        ' Use currently active project
+        Set GetVBProjectForCurrentDB = VBE.ActiveVBProject
+    Else
+        ' Search for project with matching filename.
+        For Each objProj In VBE.VBProjects
+            If objProj.FileName = strPath Then
+                Set GetVBProjectForCurrentDB = objProj
+                Exit For
+            End If
+        Next objProj
+    End If
+    
 End Function
 
 
@@ -1205,34 +1230,24 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Public Function GetCodeVBProject() As VBProject
-    Set GetCodeVBProject = GetProjectByName(CodeProject.FullName)
-End Function
-
-
-'---------------------------------------------------------------------------------------
-' Procedure : GetProjectByName
-' Author    : Adam Waller
-' Date      : 5/26/2020
-' Purpose   : Return the VBProject by file path.
-'---------------------------------------------------------------------------------------
-'
-Private Function GetProjectByName(ByVal strPath As String) As VBProject
 
     Dim objProj As VBIDE.VBProject
-        
-    ' Use currently active project by default
-    Set GetProjectByName = VBE.ActiveVBProject
+    Dim strPath As String
     
-    If VBE.ActiveVBProject.FileName <> strPath Then
+    strPath = CodeProject.FullName
+    If VBE.ActiveVBProject.FileName = strPath Then
+        ' Use currently active project
+        Set GetCodeVBProject = VBE.ActiveVBProject
+    Else
         ' Search for project with matching filename.
         For Each objProj In VBE.VBProjects
             If objProj.FileName = strPath Then
-                Set GetProjectByName = objProj
+                Set GetCodeVBProject = objProj
                 Exit For
             End If
         Next objProj
     End If
-    
+
 End Function
 
 
@@ -1330,14 +1345,25 @@ End Sub
 '
 Public Function ReadJsonFile(strPath As String) As Dictionary
     Dim strText As String
+    Dim stm As ADODB.Stream
+    
     If FSO.FileExists(strPath) Then
-        With FSO.OpenTextFile(strPath)
-            strText = .ReadAll
+        Set stm = New ADODB.Stream
+        With stm
+            .Charset = "UTF-8"
+            .Open
+            .LoadFromFile strPath
+            strText = .ReadText
             .Close
         End With
+        
         ' If it looks like json content, then parse into a dictionary object.
+        If Left(strText, 3) = "﻿" Then strText = Mid(strText, 4)
         If Left(strText, 1) = "{" Then Set ReadJsonFile = ParseJson(strText)
     End If
+    
+    Set stm = Nothing
+    
 End Function
 
 
@@ -1521,6 +1547,7 @@ Public Sub SaveComponentAsText(intType As AcObjectType, strName As String, strFi
         
     ' Export to temporary file
     strTempFile = GetTempFile
+    
     Application.SaveAsText intType, strName, strTempFile
     
     ' Handle UCS conversion if needed
@@ -1530,6 +1557,14 @@ Public Sub SaveComponentAsText(intType As AcObjectType, strName As String, strFi
     Select Case intType
         Case acForm, acReport, acQuery, acMacro
             SanitizeFile strFile
+'        Case acModule
+'            Dim strCont As String
+'            With fso.OpenTextFile(strFile)
+'                strCont = .ReadAll
+'                .Close
+'            End With
+'            Kill strFile
+'            WriteFile strCont, strFile
     End Select
     
 End Sub
@@ -1545,26 +1580,8 @@ End Sub
 Public Sub LoadComponentFromText(intType As AcObjectType, strName As String, strFile As String)
 
     Dim strTempFile As String
-    Dim blnConvert As Boolean
-    
-    ' Check UCS-2-LE requirement for the current database.
-    ' (Cached after first call)
-    Select Case intType
-        Case acForm, acReport, acQuery, acMacro, acTableDataMacro
-            blnConvert = RequiresUcs2
-    End Select
-    
-    ' Only run conversion if needed.
-    If blnConvert Then
-        ' Perform file conversion, and import from temp file.
-        strTempFile = GetTempFile
-        ConvertUtf8Ucs2 strFile, strTempFile
-        Application.LoadFromText intType, strName, strTempFile
-        Kill strTempFile
-    Else
-        ' Load UTF-8 file
-        Application.LoadFromText intType, strName, strFile
-    End If
+        
+    Application.LoadFromText intType, strName, strFile
     
 End Sub
 

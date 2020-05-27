@@ -26,6 +26,7 @@ Public RunBeforeExport As String
 Public RunAfterExport As String
 Public RunAfterBuild As String
 Public KeyName As String
+Public SkipLinkedTables As String
 
 Private m_colOptions As New Collection
 
@@ -132,13 +133,16 @@ Public Sub LoadOptionsFromFile(strFile As String)
     Dim dOptions As Scripting.Dictionary
     Dim varOption As Variant
     Dim strKey As String
+    Dim strOptionsContent As String
     
     If FSO.FileExists(strFile) Then
         ' Read file contents
         With FSO.OpenTextFile(strFile)
-            Set dOptions = modJsonConverter.ParseJson(.ReadAll)("Options")
+            strOptionsContent = .ReadAll
             .Close
         End With
+        If Left(strOptionsContent, 3) = "﻿" Then strOptionsContent = Mid(strOptionsContent, 4)
+        Set dOptions = modJsonConverter.ParseJson(strOptionsContent)("Options")
         If Not dOptions Is Nothing Then
             ' Attempt to set any matching options in this class.
             For Each varOption In m_colOptions

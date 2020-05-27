@@ -2,6 +2,11 @@ Option Compare Database
 Option Explicit
 Option Private Module
 
+#If False Then
+    Dim FSO
+    Dim ADODB
+#End If
+
 Public Enum eReleaseType
     Major_Vxx = 0
     Minor_xVx = 1
@@ -80,8 +85,8 @@ Public Function AutoRun()
             ' Create the menu items
             ' NOTE: Be sure to keep these consistent with the USysRegInfo table
             ' so the user can uninstall the add-in later if desired.
-            RegisterMenuItem "VCS &Version Control", "=AddInMenuItemLaunch()"
-            RegisterMenuItem "VCS &Export All Source", "=AddInMenuItemExport()"
+            RegisterMenuItem "&Version Control", "=AddInMenuItemLaunch()"
+            RegisterMenuItem "&Export All Source", "=AddInMenuItemExport()"
             InstalledVersion = AppVersion
             
             ' Give success message and quit Access
@@ -275,7 +280,7 @@ End Sub
 '---------------------------------------------------------------------------------------
 '
 Public Sub Deploy(Optional ReleaseType As eReleaseType = Build_xxV)
-    
+
     Dim strBinaryFile As String
     Const cstrSpacer As String = "--------------------------------------------------------------"
         

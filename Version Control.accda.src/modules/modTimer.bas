@@ -15,7 +15,7 @@ Private m_lngBuildTimerID As LongPtr
 '---------------------------------------------------------------------------------------
 '
 Public Sub RunBuildAfterClose(strSourceFolder As String)
-    m_lngBuildTimerID = 1  'SetTimer(0, 0, 1000, AddressOf BuildTimerCallback)
+    m_lngBuildTimerID = SetTimer(0, 0, 1000, AddressOf BuildTimerCallback)
     ' We will also lose the TimerID private variable value, so save it to registry as well.
     SaveSetting GetCodeVBProject.Name, "Build", "TimerID", m_lngBuildTimerID
     SaveSetting GetCodeVBProject.Name, "Build", "SourceFolder", strSourceFolder
