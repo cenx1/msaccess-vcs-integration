@@ -14,7 +14,7 @@ Private Declare PtrSafe Function IsUserAnAdmin Lib "shell32" () As Long
 ' Used to relaunch Access as an administrator to install the addin.
 #If Win64 Then
     Private Declare PtrSafe Function ShellExecute Lib "shell32.dll" Alias "ShellExecuteA" ( _
-    ByVal hWnd As LongPtr, _
+    ByVal hwnd As LongPtr, _
     ByVal lpOperation As String, _
     ByVal lpFile As String, _
     ByVal lpParameters As String, _
