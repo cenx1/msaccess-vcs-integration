@@ -12,11 +12,6 @@
         "Company": "https://github.com/joyfullservice/msaccess-vcs-integration",
         "Title": "Version Control"
       }
-    },
-    "Tables": {
-      "USysRegInfo": {
-        "Description": "Used to register or unregister the Microsoft Access Add-in in the registry."
-      }
     }
   }
 }

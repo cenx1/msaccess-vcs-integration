@@ -1,4 +1,4 @@
-Version =20
+Version =21
 VersionRequired =20
 Begin Form
     PopUp = NotDefault
@@ -21,7 +21,7 @@ Begin Form
     Top =2430
     Right =18945
     Bottom =14175
-    DatasheetGridlinesColor =14806254
+    DatasheetGridlinesColor =15132391
     RecSrcDt = Begin
         0x79e78b777268e540
     End
@@ -33,9 +33,6 @@ Begin Form
     End
     OnLoad ="[Event Procedure]"
     AllowDatasheetView =0
-    AllowPivotTableView =0
-    AllowPivotChartView =0
-    AllowPivotChartView =0
     FilterOnLoad =0
     ShowPageMargins =0
     DisplayOnSharePointSite =1
@@ -700,10 +697,10 @@ Begin Form
                     PressedShade =100.0
                     HoverForeColor =4210752
                     PressedForeColor =4210752
-                    WebImagePaddingLeft =2
-                    WebImagePaddingTop =2
-                    WebImagePaddingRight =1
-                    WebImagePaddingBottom =1
+                    WebImagePaddingLeft =4
+                    WebImagePaddingTop =4
+                    WebImagePaddingRight =3
+                    WebImagePaddingBottom =3
                     Overlaps =1
                 End
                 Begin Label
@@ -1254,10 +1251,10 @@ Begin Form
                     PressedShade =100.0
                     HoverForeColor =4210752
                     PressedForeColor =4210752
-                    WebImagePaddingLeft =9
-                    WebImagePaddingTop =9
-                    WebImagePaddingRight =9
-                    WebImagePaddingBottom =9
+                    WebImagePaddingLeft =16
+                    WebImagePaddingTop =16
+                    WebImagePaddingRight =17
+                    WebImagePaddingBottom =17
                     Overlaps =1
                 End
                 Begin Label
@@ -1362,10 +1359,10 @@ Begin Form
                     PressedShade =100.0
                     HoverForeColor =4210752
                     PressedForeColor =4210752
-                    WebImagePaddingLeft =9
-                    WebImagePaddingTop =9
-                    WebImagePaddingRight =9
-                    WebImagePaddingBottom =9
+                    WebImagePaddingLeft =16
+                    WebImagePaddingTop =16
+                    WebImagePaddingRight =17
+                    WebImagePaddingBottom =17
                     Overlaps =1
                 End
                 Begin CommandButton
@@ -1443,10 +1440,10 @@ Begin Form
                     PressedShade =100.0
                     HoverForeColor =4210752
                     PressedForeColor =4210752
-                    WebImagePaddingLeft =9
-                    WebImagePaddingTop =9
-                    WebImagePaddingRight =10
-                    WebImagePaddingBottom =10
+                    WebImagePaddingLeft =16
+                    WebImagePaddingTop =16
+                    WebImagePaddingRight =18
+                    WebImagePaddingBottom =18
                     Overlaps =1
                 End
                 Begin Label
@@ -1547,10 +1544,10 @@ Begin Form
                     PressedShade =100.0
                     HoverForeColor =4210752
                     PressedForeColor =4210752
-                    WebImagePaddingLeft =9
-                    WebImagePaddingTop =9
-                    WebImagePaddingRight =10
-                    WebImagePaddingBottom =10
+                    WebImagePaddingLeft =16
+                    WebImagePaddingTop =16
+                    WebImagePaddingRight =18
+                    WebImagePaddingBottom =18
                     Overlaps =1
                 End
                 Begin Label

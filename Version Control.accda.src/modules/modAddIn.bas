@@ -3,8 +3,7 @@ Option Explicit
 Option Private Module
 
 #If False Then
-    Dim FSO
-    Dim ADODB
+    Dim FSO, ADODB, Charset
 #End If
 
 Public Enum eReleaseType
@@ -436,7 +435,7 @@ Private Function CopyToZip(strFile As String, strZip As String)
     varFile = strFile
     
     Set oApp = CreateObject("Shell.Application")
-    oApp.NameSpace(varZip).CopyHere varFile
+    oApp.Namespace(varZip).CopyHere varFile
     
 End Function
 
