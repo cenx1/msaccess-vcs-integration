@@ -1,13 +1,16 @@
 *.komodoproject
 
-
-# Backup files created while building from source
+# Version Control Add-in Binaries
+# (This should be built from source and not committed to version control)
+*.mdb
+*.accda
 *.accdb
+*.zip
 
 # Database lock files
 *.laccdb
 
 # Comment out the following line if you wish to include the log files in git.
-*.log
+Export.log
+Import.log
 
-*.accda

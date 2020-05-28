@@ -200,6 +200,12 @@ Public Sub SanitizeFile(strPath As String)
         ' Watch for end of report (and skip these lines)
         ElseIf blnIsReport And (InStr(1, strText, "    Right =") Or InStr(1, strText, "    Bottom =")) Then
             If InStr(1, strText, "    Bottom =") Then blnIsReport = False
+        
+        ' Change version down to 20 to allow import into Access 2010.
+        ' (Haven't seen any significant issues with this.)
+        ElseIf strText = "Version =21" Then
+            cData.Add "Version =20"
+            cData.Add vbCrLf
 
         ' Regular lines of data to add.
         Else
@@ -1348,12 +1354,8 @@ Public Function ReadJsonFile(strPath As String) As Dictionary
     Dim stm As ADODB.Stream
     
     If FSO.FileExists(strPath) Then
-        Set stm = New ADODB.Stream
-        With stm
-            .Charset = "UTF-8"
-            .Open
-            .LoadFromFile strPath
-            strText = .ReadText
+        With FSO.OpenTextFile(strPath, ForReading, False)
+            strText = RemoveUTF8BOM(.ReadAll)
             .Close
         End With
         

@@ -235,7 +235,7 @@ Public Sub ConvertUcs2Utf8(strSourceFile As String, strDestinationFile As String
         
         'Debug.Print "Read content of file: " & strSourceFile
         ' Read file contents and delete (temp) source file
-        With FSO.OpenTextFile(strSourceFile, , , TristateTrue)
+        With FSO.OpenTextFile(strSourceFile, ForReading, False, TristateTrue)
             strText = .ReadAll
             .Close
         End With
@@ -294,14 +294,11 @@ Public Sub ConvertUtf8Ucs2(strSourceFile As String, strDestinationFile As String
         FSO.CopyFile strSourceFile, strDestinationFile
     Else
         
-        'Debug.Print "Read file into byte array: " & strSourceFile
-        Dim fnum As Integer
-        Dim bytes() As Byte
-        fnum = FreeFile
-        Open strSourceFile For Binary As fnum
-            ReDim bytes(LOF(fnum) - 1)
-            Get fnum, , bytes
-        Close fnum
+        ' Read file contents
+        With FSO.OpenTextFile(strSourceFile, ForReading, False, TristateFalse)
+            strText = RemoveUTF8BOM(.ReadAll)
+            .Close
+        End With
         
         'Debug.Print "Get string from bytes"
         strText = Utf8BytesToString(bytes)
