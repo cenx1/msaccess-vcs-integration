@@ -48,8 +48,7 @@ Private Sub IDbComponent_Export()
             ' Export the table using this format.
             Select Case intFormat
                 Case etdTabDelimited:   ExportTableDataAsTDF m_Table.Name
-                Case etdXML
-                    ' Export data rows as XML
+                Case etdXML:
                     Application.ExportXML acExportTable, m_Table.Name, strFile
                     SanitizeXML strFile, Options
             End Select
@@ -121,7 +120,7 @@ Private Sub ImportTableDataTDF(strFile As String)
     Dim dCols As Dictionary
     Dim fld As DAO.Field
     Dim dbs As DAO.Database
-    Dim rst As DAO.Recordset
+    Dim rst As Recordset
     Dim stm As Scripting.TextStream
     Dim strLine As String
     Dim varLine As Variant

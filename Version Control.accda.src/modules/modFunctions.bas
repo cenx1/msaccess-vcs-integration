@@ -1354,8 +1354,12 @@ Public Function ReadJsonFile(strPath As String) As Dictionary
     Dim stm As ADODB.Stream
     
     If FSO.FileExists(strPath) Then
-        With FSO.OpenTextFile(strPath, ForReading, False)
-            strText = RemoveUTF8BOM(.ReadAll)
+        Set stm = New ADODB.Stream
+        With stm
+            .Charset = "UTF-8"
+            .Open
+            .LoadFromFile strPath
+            strText = .ReadText
             .Close
         End With
         
@@ -1559,14 +1563,6 @@ Public Sub SaveComponentAsText(intType As AcObjectType, strName As String, strFi
     Select Case intType
         Case acForm, acReport, acQuery, acMacro
             SanitizeFile strFile
-'        Case acModule
-'            Dim strCont As String
-'            With fso.OpenTextFile(strFile)
-'                strCont = .ReadAll
-'                .Close
-'            End With
-'            Kill strFile
-'            WriteFile strCont, strFile
     End Select
     
 End Sub
@@ -1582,8 +1578,21 @@ End Sub
 Public Sub LoadComponentFromText(intType As AcObjectType, strName As String, strFile As String)
 
     Dim strTempFile As String
-        
-    Application.LoadFromText intType, strName, strFile
+    Dim strTempFile2 As String
+    
+    strTempFile = GetTempFile
+    strTempFile2 = GetTempFile
+    FSO.CopyFile strFile, strTempFile
+    
+    Select Case intType
+        Case acForm, acReport, acQuery, acMacro
+            ' Handle UCS conversion if needed
+            ConvertUtf8Ucs2 strTempFile, strTempFile2
+        Case Else
+            strTempFile2 = strTempFile
+    End Select
+    
+    Application.LoadFromText intType, strName, strTempFile2
     
 End Sub
 
@@ -1933,3 +1942,49 @@ Public Sub TestPrinterFunctions()
         
     End With
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : SortDictionaryByKey
+' Author    : Adapted by Casper Englund
+' Date      : 2020/05/28
+' Purpose   : Sort a dictionary by key name - If automation error happens visit
+'             https://stackoverflow.com/questions/40625618/automation-error-2146232576-80131700-on-creating-an-array
+'---------------------------------------------------------------------------------------
+'
+Public Function SortDictionaryByKey(dict As Object, Optional sortDescending As Boolean) As Dictionary
+    
+    Dim arrList As ArrayList
+    Set arrList = New ArrayList
+    
+    ' Put keys in an ArrayList
+    Dim key As Variant, coll As New Collection
+    For Each key In dict
+        arrList.Add key
+    Next key
+    
+    ' Sort the keys
+    arrList.Sort
+    
+    ' For descending order, reverse
+    If sortDescending Then
+        arrList.Reverse
+    End If
+    
+    ' Create new dictionary
+    Dim dictNew As Object
+    Set dictNew = CreateObject("Scripting.Dictionary")
+    
+    ' Read through the sorted keys and add to new dictionary
+    For Each key In arrList
+        dictNew.Add key, dict(key)
+    Next key
+    
+    ' Clean up
+    Set arrList = Nothing
+    Set dict = Nothing
+    
+    ' Return the new dictionary
+    Set SortDictionaryByKey = dictNew
+        
+End Function

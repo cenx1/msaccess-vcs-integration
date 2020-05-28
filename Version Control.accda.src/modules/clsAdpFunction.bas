@@ -12,6 +12,10 @@ Attribute VB_Exposed = False
 Option Compare Database
 Option Explicit
 
+#If False Then
+    Dim FSO, ADODB
+#End If
+
 Private m_Function As AccessObject
 Private m_AllItems As Collection
 
