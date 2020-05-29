@@ -1,4 +1,4 @@
-Version =21
+Version =20
 VersionRequired =20
 Begin Form
     PopUp = NotDefault
@@ -17,10 +17,10 @@ Begin Form
     Width =9360
     DatasheetFontHeight =11
     ItemSuffix =20
-    Left =3225
-    Top =2430
-    Right =18945
-    Bottom =14175
+    Left =16770
+    Top =3390
+    Right =-20431
+    Bottom =21855
     DatasheetGridlinesColor =15132391
     RecSrcDt = Begin
         0x79e78b777268e540
@@ -189,6 +189,8 @@ Begin Form
                 End
                 Begin CommandButton
                     OverlapFlags =93
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     Left =4740
                     Top =2400
                     Width =2880
@@ -697,10 +699,10 @@ Begin Form
                     PressedShade =100.0
                     HoverForeColor =4210752
                     PressedForeColor =4210752
-                    WebImagePaddingLeft =4
-                    WebImagePaddingTop =4
-                    WebImagePaddingRight =3
-                    WebImagePaddingBottom =3
+                    WebImagePaddingLeft =2
+                    WebImagePaddingTop =2
+                    WebImagePaddingRight =1
+                    WebImagePaddingBottom =1
                     Overlaps =1
                 End
                 Begin Label
@@ -725,6 +727,8 @@ Begin Form
                 End
                 Begin CommandButton
                     OverlapFlags =93
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     Left =4740
                     Top =3780
                     Width =2880
@@ -1251,10 +1255,10 @@ Begin Form
                     PressedShade =100.0
                     HoverForeColor =4210752
                     PressedForeColor =4210752
-                    WebImagePaddingLeft =16
-                    WebImagePaddingTop =16
-                    WebImagePaddingRight =17
-                    WebImagePaddingBottom =17
+                    WebImagePaddingLeft =9
+                    WebImagePaddingTop =9
+                    WebImagePaddingRight =9
+                    WebImagePaddingBottom =9
                     Overlaps =1
                 End
                 Begin Label
@@ -1326,6 +1330,8 @@ Begin Form
                 Begin CommandButton
                     Cancel = NotDefault
                     OverlapFlags =85
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     Left =7680
                     Top =5940
                     Width =1500
@@ -1359,14 +1365,16 @@ Begin Form
                     PressedShade =100.0
                     HoverForeColor =4210752
                     PressedForeColor =4210752
-                    WebImagePaddingLeft =16
-                    WebImagePaddingTop =16
-                    WebImagePaddingRight =17
-                    WebImagePaddingBottom =17
+                    WebImagePaddingLeft =9
+                    WebImagePaddingTop =9
+                    WebImagePaddingRight =9
+                    WebImagePaddingBottom =9
                     Overlaps =1
                 End
                 Begin CommandButton
                     OverlapFlags =223
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     Left =6480
                     Top =1200
                     Width =1560
@@ -1440,10 +1448,10 @@ Begin Form
                     PressedShade =100.0
                     HoverForeColor =4210752
                     PressedForeColor =4210752
-                    WebImagePaddingLeft =16
-                    WebImagePaddingTop =16
-                    WebImagePaddingRight =18
-                    WebImagePaddingBottom =18
+                    WebImagePaddingLeft =9
+                    WebImagePaddingTop =9
+                    WebImagePaddingRight =10
+                    WebImagePaddingBottom =10
                     Overlaps =1
                 End
                 Begin Label
@@ -1471,6 +1479,8 @@ Begin Form
                 End
                 Begin CommandButton
                     OverlapFlags =223
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     Left =8100
                     Top =1200
                     Width =1080
@@ -1544,10 +1554,10 @@ Begin Form
                     PressedShade =100.0
                     HoverForeColor =4210752
                     PressedForeColor =4210752
-                    WebImagePaddingLeft =16
-                    WebImagePaddingTop =16
-                    WebImagePaddingRight =18
-                    WebImagePaddingBottom =18
+                    WebImagePaddingLeft =9
+                    WebImagePaddingTop =9
+                    WebImagePaddingRight =10
+                    WebImagePaddingBottom =10
                     Overlaps =1
                 End
                 Begin Label

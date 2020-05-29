@@ -26,7 +26,7 @@ Public RunBeforeExport As String
 Public RunAfterExport As String
 Public RunAfterBuild As String
 Public KeyName As String
-Public SkipLinkedTables As String
+Public UseEncryption As Boolean
 
 Private m_colOptions As New Collection
 
@@ -50,7 +50,8 @@ Public Sub LoadDefaults()
         .SaveTableSQL = True
         .StripPublishOption = True
         .AggressiveSanitize = True
-        .KeyName = "MSAccessVCS"
+        .KeyName = modEncrypt.DefaultKeyName
+        .UseEncryption = False
         Set .TablesToExportData = New Scripting.Dictionary
         ' Save specific tables by default
         AddTableToExportData "USysRibbons", etdTabDelimited
@@ -245,8 +246,12 @@ Private Function SerializeOptions() As Scripting.Dictionary
     #End If
     dInfo.Add "AddinVersion", AppVersion
     dInfo.Add "AccessVersion", Application.Version & strBit
-    dInfo.Add "Hash", Encrypt(CodeProject.Name)
-    
+    If Options.UseEncryption Then
+        dInfo.Add "Hash", Encrypt(CodeProject.Name)
+    Else
+        dInfo.Add "Hash", CodeProject.Name & " - No Encryption"
+    End If
+        
     For Each varOption In m_colOptions
         strOption = CStr(varOption)
         ' Simulate reflection to serialize properties
@@ -320,6 +325,7 @@ Private Sub Class_Initialize()
         .Add "RunAfterExport"
         .Add "RunAfterBuild"
         .Add "KeyName"
+        .Add "UseEncryption"
     End With
     
     ' Load default values

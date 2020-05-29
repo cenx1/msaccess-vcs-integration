@@ -229,7 +229,7 @@ Public Sub ConvertUtf8Ucs2(strSourceFile As String, strDestinationFile As String
         Get fnum, , utf8Bytes
         Close fnum
 
-        ' Convert byte array to string                
+        ' Convert byte array to string
         strText = Utf8BytesToString(utf8Bytes)
         
         ' Write as UCS-2 LE (BOM)

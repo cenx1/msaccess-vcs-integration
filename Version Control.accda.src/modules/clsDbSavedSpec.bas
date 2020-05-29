@@ -41,7 +41,11 @@ Private Sub IDbComponent_Export()
     With dSpec
         .Add "Name", m_Spec.Name
         .Add "Description", m_Spec.Description
-        .Add "XML", EncryptBetween(m_Spec.XML, "<ImportExportSpecification Path = """, """")
+        If Options.UseEncryption Then
+            .Add "XML", EncryptBetween(m_Spec.XML, "<ImportExportSpecification Path = """, """")
+        Else
+            .Add "XML", m_Spec.XML
+        End If
     End With
     If Err Then Err.Clear
     On Error GoTo 0
