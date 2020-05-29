@@ -128,74 +128,6 @@ Public Function RequiresUcs2(Optional blnUseCache As Boolean = True) As Boolean
 End Function
 
 
-' Determine if this database imports/exports code as UCS-2-LE. (Older file
-' formats cause exported objects to use a Windows 8-bit character set.)
-Public Function UsingUcs2(Optional ByRef appInstance As Application) As Boolean
-    If appInstance Is Nothing Then Set appInstance = Application.Application
-    
-    Dim obj_name As String
-    Dim obj_type As Variant
-    Dim obj_type_split() As String
-    Dim obj_type_name As String
-    Dim obj_type_num As Long
-    Dim thisDb As Database
-    Set thisDb = appInstance.CurrentDb
-
-    If CurrentProject.ProjectType = acMDB Then
-        If thisDb.QueryDefs.Count > 0 Then
-            obj_type_num = acQuery
-            obj_name = thisDb.QueryDefs(0).Name
-        Else
-            For Each obj_type In Split( _
-                "Forms|" & acForm & "," & _
-                "Reports|" & acReport & "," & _
-                "Scripts|" & acMacro & "," _
-            )
-                DoEvents
-                obj_type_split = Split(obj_type, "|")
-                obj_type_name = obj_type_split(0)
-                obj_type_num = Val(obj_type_split(1))
-                If thisDb.Containers(obj_type_name).Documents.Count > 0 Then
-                    obj_name = thisDb.Containers(obj_type_name).Documents(0).Name
-                    Exit For
-                End If
-            Next
-        End If
-    Else
-        ' ADP Project
-        If CurrentData.AllQueries.Count > 0 Then
-            obj_type_num = acServerView
-            obj_name = CurrentData.AllQueries(1).Name
-        ElseIf CurrentProject.AllForms.Count > 0 Then
-            ' Try a form
-            obj_type_num = acForm
-            obj_name = CurrentProject.AllForms(1).Name
-        Else
-            ' Can add more object types as needed...
-        End If
-    End If
-
-    Dim tempFileName As String: tempFileName = GetTempFile()
-    
-    If obj_name = "" Then
-        ' No objects found, make one to test.
-        obj_name = "Temp_Test_Query_Delete_Me"
-        
-        thisDb.CreateQueryDef obj_name, "SELECT * FROM TEST WHERE TESTING=TRUE"
-        appInstance.SaveAsText acQuery, obj_name, tempFileName
-        thisDb.QueryDefs.Delete obj_name
-    Else
-        ' Use found object
-        appInstance.SaveAsText obj_type_num, obj_name, tempFileName
-    End If
-
-    UsingUcs2 = FileIsUCS2Format(tempFileName)
-    
-    FSO.DeleteFile tempFileName
-    
-End Function
-
-
 '---------------------------------------------------------------------------------------
 ' Procedure : FileIsUCS2Format
 ' Author    : Adam Kauffman
@@ -221,9 +153,11 @@ End Function
 ' Author    : Adam Waller
 ' Date      : 1/23/2019
 ' Purpose   : Convert a UCS2-little-endian encoded file to UTF-8.
+'           : Typically the source file will be a temp file.
 '---------------------------------------------------------------------------------------
 '
-Public Sub ConvertUcs2Utf8(strSourceFile As String, strDestinationFile As String)
+Public Sub ConvertUcs2Utf8(strSourceFile As String, strDestinationFile As String, _
+    Optional blnDeleteSourceFileAfterConversion As Boolean = True)
 
     Dim strText As String
     Dim utf8Bytes() As Byte
@@ -243,16 +177,16 @@ Public Sub ConvertUcs2Utf8(strSourceFile As String, strDestinationFile As String
             .Close
         End With
         
-        Kill strSourceFile
+        ' Remove the source file if specified
+        If blnDeleteSourceFileAfterConversion Then Kill strSourceFile
         
+        ' Build a byte array from the text
         utf8Bytes = Utf8BytesFromString(strText)
         
-        
-        ' Write as UTF-8
+        ' Write as UTF-8 in the destination file.
         fnum = FreeFile
-                
         Open strDestinationFile For Binary As #fnum
-        Put #fnum, 1, utf8Bytes
+            Put #fnum, 1, utf8Bytes
         Close fnum
         
     Else
@@ -267,10 +201,12 @@ End Sub
 ' Procedure : ConvertUtf8Ucs2
 ' Author    : Adam Waller
 ' Date      : 1/24/2019
-' Purpose   : Convert the file to old UCS-2 unicode format
+' Purpose   : Convert the file to old UCS-2 unicode format.
+'           : Typically the destination file will be a temp file.
 '---------------------------------------------------------------------------------------
 '
-Public Sub ConvertUtf8Ucs2(strSourceFile As String, strDestinationFile As String)
+Public Sub ConvertUtf8Ucs2(strSourceFile As String, strDestinationFile As String, _
+    Optional blnDeleteSourceFileAfterConversion As Boolean = True)
 
     Dim strText As String
     Dim utf8Bytes() As Byte
@@ -285,7 +221,6 @@ Public Sub ConvertUtf8Ucs2(strSourceFile As String, strDestinationFile As String
         ' No conversion needed, send to destination as is
         FSO.MoveFile strSourceFile, strDestinationFile
     Else
-        
         ' Read file contents
         fnum = FreeFile
         
@@ -293,7 +228,8 @@ Public Sub ConvertUtf8Ucs2(strSourceFile As String, strDestinationFile As String
         ReDim utf8Bytes(LOF(fnum) - 1)
         Get fnum, , utf8Bytes
         Close fnum
-                
+
+        ' Convert byte array to string                
         strText = Utf8BytesToString(utf8Bytes)
         
         ' Write as UCS-2 LE (BOM)
@@ -348,6 +284,7 @@ Public Function GetTempFile(Optional strPrefix As String = "VBA") As String
     
 End Function
 
+
 '---------------------------------------------------------------------------------------
 ' Procedure : BytesLength
 ' Author    : Casper Englund
@@ -361,6 +298,7 @@ Private Function BytesLength(abBytes() As Byte) As Long
     BytesLength = UBound(abBytes) - LBound(abBytes) + 1
     
 End Function
+
 
 '---------------------------------------------------------------------------------------
 ' Procedure : Utf8BytesToString
@@ -403,6 +341,7 @@ Public Function Utf8BytesToString(abUtf8Array() As Byte) As String
     Utf8BytesToString = Left$(strOut, nChars)
 
 End Function
+
 
 '---------------------------------------------------------------------------------------
 ' Procedure : Utf8BytesFromString
