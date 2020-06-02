@@ -32,11 +32,11 @@ Implements IDbComponent
 Private Sub IDbComponent_Export()
     
     Dim prp As AccessObjectProperty
-    Dim dCollection As Scripting.Dictionary
+    Dim dCollection As Dictionary
     Dim strPath As String
     Dim varValue As Variant
     
-    Set dCollection = New Scripting.Dictionary
+    Set dCollection = New Dictionary
     
     ' Loop through all properties
     For Each prp In CurrentProject.Properties
@@ -51,18 +51,10 @@ Private Sub IDbComponent_Export()
                     varValue = strPath
                 Else
                     ' The full path may contain sensitive info. Encrypt the path but not the file name.
-                    If Options.UseEncryption Then
-                        varValue = EncryptPath(CStr(varValue))
-                    Else
-                        varValue = CStr(varValue)
-                    End If
+                    varValue = SecurePath(CStr(varValue))
                 End If
                 ' ADP projects may have this property
-                If Options.UseEncryption Then
-                    dCollection.Add prp.Name, EncryptPath(CStr(varValue))
-                Else
-                    dCollection.Add prp.Name, CStr(varValue)
-                End If
+                dCollection.Add prp.Name, SecurePath(CStr(varValue))
             Case Else
                 dCollection.Add prp.Name, prp.Value
         End Select
@@ -90,7 +82,6 @@ Private Sub IDbComponent_Import(strFile As String)
     Dim projCurrent As CurrentProject
     Dim varKey As Variant
     Dim varValue As Variant
-    Dim strText As String
     
     Set projCurrent = CurrentProject
     
@@ -115,7 +106,7 @@ Private Sub IDbComponent_Import(strFile As String)
                     ' Skip these properties
                 Case Else
                     varValue = Decrypt(dItems(varKey))
-                    If Left(varValue, 4) = "rel:" Then varValue = GetPathFromRelative(CStr(varValue))
+                    If Left$(varValue, 4) = "rel:" Then varValue = GetPathFromRelative(CStr(varValue))
                     If dExisting.Exists(varKey) Then
                         If dItems(varKey) <> dExisting(varKey) Then
                             ' Update value of existing property if different.
@@ -180,8 +171,8 @@ End Function
 ' Purpose   : Remove any source files for objects not in the current database.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_ClearOrphanedSourceFiles() As Variant
-End Function
+Private Sub IDbComponent_ClearOrphanedSourceFiles()
+End Sub
 
 
 '---------------------------------------------------------------------------------------

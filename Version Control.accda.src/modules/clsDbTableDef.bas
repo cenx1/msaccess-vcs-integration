@@ -14,7 +14,7 @@ Option Explicit
 
 Private m_Table As DAO.TableDef
 Private m_AllItems As Collection
-Private m_Dbs
+Private m_Dbs As Database
 
 ' This requires us to use all the public methods and properties of the implemented class
 ' which keeps all the component classes consistent in how they are used in the export
@@ -57,18 +57,14 @@ Private Sub IDbComponent_Export()
         Set dItem = New Dictionary
         With dItem
             .Add "Name", tbl.Name
-            If Options.UseEncryption Then
-                .Add "Connect", Encrypt(tbl.Connect)
-            Else
-                .Add "Connect", tbl.Connect
-            End If
+            .Add "Connect", Secure(tbl.Connect)
             .Add "SourceTableName", tbl.SourceTableName
             .Add "Attributes", tbl.Attributes
             ' indexes (Find primary key)
             For Each idx In tbl.Indexes
                 If idx.Primary Then
                     ' Add the primary key columns, using brackets just in case the field names have spaces.
-                    .Add "PrimaryKey", "[" & MultiReplace(CStr(idx.Fields), "+", "", ";", "], [") & "]"
+                    .Add "PrimaryKey", "[" & MultiReplace(CStr(idx.Fields), "+", vbNullString, ";", "], [") & "]"
                     Exit For
                 End If
             Next idx
@@ -309,7 +305,7 @@ End Function
 '
 Private Sub IDbComponent_Import(strFile As String)
 
-    Select Case LCase(FSO.GetExtensionName(strFile))
+    Select Case LCase$(FSO.GetExtensionName(strFile))
         Case "json"
             ImportLinkedTable strFile
         Case "xml"
@@ -423,10 +419,10 @@ End Function
 ' Purpose   : Remove any source files for objects not in the current database.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_ClearOrphanedSourceFiles() As Variant
+Private Sub IDbComponent_ClearOrphanedSourceFiles()
     ClearFilesByExtension IDbComponent_BaseFolder, "LNKD"
     ClearOrphanedSourceFiles Me, "LNKD", "bas", "sql", "xml", "tdf", "json"
-End Function
+End Sub
 
 
 '---------------------------------------------------------------------------------------
@@ -570,6 +566,7 @@ End Property
 '---------------------------------------------------------------------------------------
 '
 Private Property Get IDbComponent_SingleFile() As Boolean
+    IDbComponent_SingleFile = False
 End Property
 
 

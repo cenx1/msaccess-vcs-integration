@@ -62,7 +62,7 @@ Public Sub ExportSource()
         Log.Add CurrentProject.Name
         Log.Add "VCS Version " & GetVCSVersion
         If .UseFastSave Then Log.Add "Using Fast Save"
-        Log.Add Now()
+        Log.Add Now
         Log.Spacer
         Log.Flush
     End With
@@ -83,7 +83,7 @@ Public Sub ExportSource()
             Log.PadRight "Exporting " & cCategory.Category & "...", , Options.ShowDebug
 
             ' Loop through each object in this category.
-            For Each cDbObject In cCategory.GetAllFromDB()
+            For Each cDbObject In cCategory.GetAllFromDB
                 
                 ' Check for fast save option
                 If Options.UseFastSave And Not blnFullExport Then
@@ -194,7 +194,7 @@ Public Sub Build(strSourceFolder As String)
         .Add "Beginning Build from Source", False
         .Add FSO.GetFileName(strPath)
         .Add "VCS Version " & GetVCSVersion
-        .Add Now()
+        .Add Now
         .Spacer
         .Flush
     End With
@@ -206,7 +206,7 @@ Public Sub Build(strSourceFolder As String)
     Log.Add "Saved as " & FSO.GetFileName(strText) & "."
     
     ' Create a new database with the original name
-    If LCase(FSO.GetExtensionName(strPath)) = "adp" Then
+    If LCase$(FSO.GetExtensionName(strPath)) = "adp" Then
         ' ADP project
         Application.NewAccessProject strPath
     Else
@@ -333,7 +333,7 @@ End Function
 ' Purpose   : Return an unused filename for the database backup befor build
 '---------------------------------------------------------------------------------------
 '
-Private Function GetBackupFileName(strPath As String)
+Private Function GetBackupFileName(strPath As String) As Variant
     
     Const cstrSuffix As String = "_VCSBackup"
     

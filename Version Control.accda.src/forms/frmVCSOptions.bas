@@ -730,6 +730,52 @@ Begin Form
                                         End
                                     End
                                 End
+                                Begin ComboBox
+                                    LimitToList = NotDefault
+                                    RowSourceTypeInt =1
+                                    OverlapFlags =215
+                                    IMESentenceMode =3
+                                    ColumnCount =2
+                                    ListWidth =1440
+                                    Left =5760
+                                    Top =4200
+                                    Width =1920
+                                    Height =315
+                                    TabIndex =8
+                                    BorderColor =10921638
+                                    ForeColor =4138256
+                                    Name ="cboSecurity"
+                                    RowSourceType ="Value List"
+                                    RowSource ="1;\"Encrypt\";2;\"Remove\";3;\"None\""
+                                    ColumnWidths ="0"
+                                    OnClick ="[Event Procedure]"
+                                    GridlineColor =10921638
+
+                                    LayoutCachedLeft =5760
+                                    LayoutCachedTop =4200
+                                    LayoutCachedWidth =7680
+                                    LayoutCachedHeight =4515
+                                    Begin
+                                        Begin Label
+                                            OverlapFlags =215
+                                            Left =4740
+                                            Top =4200
+                                            Width =900
+                                            Height =320
+                                            BorderColor =8355711
+                                            ForeColor =5324600
+                                            Name ="Col1_Label"
+                                            Caption ="Security:"
+                                            GridlineColor =10921638
+                                            LayoutCachedLeft =4740
+                                            LayoutCachedTop =4200
+                                            LayoutCachedWidth =5640
+                                            LayoutCachedHeight =4520
+                                            ForeThemeColorIndex =-1
+                                            ForeTint =100.0
+                                        End
+                                    End
+                                End
                                 Begin TextBox
                                     OverlapFlags =215
                                     IMESentenceMode =3
@@ -737,7 +783,7 @@ Begin Form
                                     Top =5040
                                     Width =2640
                                     Height =315
-                                    TabIndex =8
+                                    TabIndex =9
                                     BorderColor =10921638
                                     ForeColor =4210752
                                     Name ="txtRunBeforeExport"
@@ -775,7 +821,7 @@ Begin Form
                                     Top =5460
                                     Width =2640
                                     Height =315
-                                    TabIndex =9
+                                    TabIndex =10
                                     BorderColor =10921638
                                     ForeColor =4210752
                                     Name ="txtRunAfterExport"
@@ -1407,7 +1453,7 @@ Begin Form
                             Height =4410
                             BorderColor =10921638
                             Name ="pgeEncrypt"
-                            Caption ="Security"
+                            Caption ="Encryption"
                             GridlineColor =10921638
                             LayoutCachedLeft =615
                             LayoutCachedTop =1980
@@ -2359,6 +2405,18 @@ End Enum
 
 
 '---------------------------------------------------------------------------------------
+' Procedure : cboSecurity_Click
+' Author    : Adam Waller
+' Date      : 6/1/2020
+' Purpose   : Show encryption tab when relevant.
+'---------------------------------------------------------------------------------------
+'
+Private Sub cboSecurity_Click()
+    pgeEncrypt.Visible = (cboSecurity = esEncrypt)
+End Sub
+
+
+'---------------------------------------------------------------------------------------
 ' Procedure : chkIUnderstand_Click
 ' Author    : Adam Waller
 ' Date      : 4/24/2020
@@ -2429,7 +2487,7 @@ End Sub
 '           : of tables where we are opting to save data.
 '---------------------------------------------------------------------------------------
 '
-Private Function LoadTableList()
+Private Function LoadTableList() As Variant
 
     Dim tbl As AccessObject
     Dim blnHidden As Boolean
@@ -2510,7 +2568,7 @@ End Sub
 ' Purpose   : Set the export type for the table
 '---------------------------------------------------------------------------------------
 '
-Private Function SetTableExportType(strTable As String, strFormat As String)
+Private Function SetTableExportType(strTable As String, strFormat As String) As Variant
 
     Dim varTable As Variant
     Dim varNew As Variant
@@ -2544,7 +2602,7 @@ End Function
 ' Purpose   : The master list of tables is stored in the m_colTables
 '---------------------------------------------------------------------------------------
 '
-Private Function RefreshTableDisplay()
+Private Function RefreshTableDisplay() As Variant
     
     Dim varTable As Variant
     Dim blnShow As Boolean
@@ -2553,7 +2611,7 @@ Private Function RefreshTableDisplay()
     With Me.lstTables
 
         ' Add header row
-        .RowSource = ""
+        .RowSource = vbNullString
         .AddItem "Table Name;Save Data"
         
         ' Get list of tables
@@ -2603,7 +2661,7 @@ End Sub
 Private Sub cmdSaveAndClose_Click()
     
     ' Encourage user to set encryption key.
-    If Not modEncrypt.EncryptionKeySet Then
+    If Options.Security = esEncrypt And (Not modEncrypt.EncryptionKeySet) Then
         If MsgBox2("Encryption Key Not Set", "No encryption key has been set for the current user." & vbCrLf & _
             "This is used to mask sensitive data when exporting source.", "Would you like to do this now?", vbQuestion + vbYesNo) = vbYes Then
             pgeEncrypt.SetFocus
@@ -2732,6 +2790,7 @@ Private Sub Form_Load()
     Next intFormat
     
     ' Load encryption key status
+    cboSecurity_Click
     SetKeyStatusDisplay
     
 End Sub
@@ -2744,26 +2803,27 @@ End Sub
 ' Purpose   : Map the form controls to the options, performing the specified action.
 '---------------------------------------------------------------------------------------
 '
-Private Function MapControlsToOptions(eAction As eMapAction)
+Private Function MapControlsToOptions(eAction As eMapAction) As Variant
 
     Dim pge As Access.Page
     Dim ctl As Control
     Dim strKey As String
     Dim varItem As Variant
-    Dim dTables As Scripting.Dictionary
-    Dim dTable As Scripting.Dictionary
+    Dim dTables As Dictionary
+    Dim dTable As Dictionary
     
     ' Loop through each page
     For Each pge In tabOptions.Pages
         For Each ctl In pge.Controls
             Select Case TypeName(ctl)
-                Case "CheckBox", "TextBox"
+                Case "CheckBox", "TextBox", "ComboBox"
                     Select Case ctl.Name
-                        Case "chkTableShowHidden", "chkTableShowSystem", "chkTableShowOther", "txtTableName", "chkIUnderstand"
+                        Case "chkTableShowHidden", "chkTableShowSystem", "chkTableShowOther", _
+                            "cboTableDataSaveType", "txtTableName", "chkIUnderstand"
                             ' Skip these exceptions.
                         Case Else
                             ' Get option name from control name following prefix.
-                            strKey = Mid(ctl.Name, 4)
+                            strKey = Mid$(ctl.Name, 4)
                             If eAction = emaClassToForm Then
                                 ctl = CallByName(Options, strKey, VbGet)
                             ElseIf eAction = emaFormToClass Then
@@ -2783,10 +2843,10 @@ Private Function MapControlsToOptions(eAction As eMapAction)
         LoadTableList
     ElseIf eAction = emaFormToClass Then
         ' Save list of tables to export data
-        Set dTables = New Scripting.Dictionary
+        Set dTables = New Dictionary
         For Each varItem In m_colTables
             If varItem(etcType) <> vbNullString Then
-                Set dTable = New Scripting.Dictionary
+                Set dTable = New Dictionary
                 dTable("Format") = varItem(etcType)
                 'dTable("ObjectType") = "Table"  ' Could add queries later
                 dTables.Add varItem(etcName), dTable

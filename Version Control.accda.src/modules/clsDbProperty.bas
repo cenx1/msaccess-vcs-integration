@@ -32,12 +32,12 @@ Implements IDbComponent
 Private Sub IDbComponent_Export()
     
     Dim prp As DAO.Property
-    Dim dCollection As Scripting.Dictionary
-    Dim dItem As Scripting.Dictionary
+    Dim dCollection As Dictionary
+    Dim dItem As Dictionary
     Dim varValue As Variant
     Dim strPath As String
     
-    Set dCollection = New Scripting.Dictionary
+    Set dCollection = New Dictionary
     
     ' Loop through all properties
     For Each prp In CurrentDb.Properties
@@ -56,16 +56,14 @@ Private Sub IDbComponent_Export()
                         If Len(strPath) > 0 Then
                             varValue = strPath
                         Else
-                            ' The full path may contain sensitive info. Encrypt the path but not the file name.
-                            If Options.UseEncryption Then
-                                varValue = EncryptPath(CStr(varValue))
-                            Else
-                                varValue = CStr(varValue)
-                            End If
+                            ' The full path may contain sensitive info. Secure the path but not the file name.
+                            ' (Whether the value is encrypted, removed or left as plain text depends on
+                            '  what is selected in the options.)
+                            varValue = SecurePath(CStr(varValue))
                         End If
                     End If
                 End If
-                Set dItem = New Scripting.Dictionary
+                Set dItem = New Dictionary
                 dItem.Add "Value", varValue
                 dItem.Add "Type", prp.Type
                 dCollection.Add prp.Name, dItem
@@ -124,7 +122,7 @@ Private Sub IDbComponent_Import(strFile As String)
                     strDecrypted = Decrypt(CStr(varValue))
                     If CStr(varValue) <> strDecrypted Then varValue = strDecrypted
                     ' Check for relative path
-                    If Left(varValue, 4) = "rel:" Then varValue = GetPathFromRelative(CStr(varValue))
+                    If Left$(varValue, 4) = "rel:" Then varValue = GetPathFromRelative(CStr(varValue))
                     ' Check for existing value
                     If dExisting.Exists(varKey) Then
                         If dItems(varKey)("Type") <> dExisting(varKey)(1) Then
@@ -202,11 +200,11 @@ End Function
 ' Purpose   : Remove any source files for objects not in the current database.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_ClearOrphanedSourceFiles() As Variant
+Private Sub IDbComponent_ClearOrphanedSourceFiles()
     Dim strFile As String
     strFile = IDbComponent_BaseFolder & "properties.txt"
     If FSO.FileExists(strFile) Then Kill strFile    ' Remove legacy file
-End Function
+End Sub
 
 
 '---------------------------------------------------------------------------------------

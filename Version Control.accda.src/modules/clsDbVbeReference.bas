@@ -32,26 +32,22 @@ Implements IDbComponent
 '
 Private Sub IDbComponent_Export()
 
-    Dim dRef As Scripting.Dictionary
-    Dim dItems As Scripting.Dictionary
+    Dim dRef As Dictionary
+    Dim dItems As Dictionary
     Dim cRef As clsDbVbeReference
     Dim ref As VBIDE.Reference
     
-    Set dItems = New Scripting.Dictionary
+    Set dItems = New Dictionary
     
     ' Loop through cached references (Duplicates have already been removed)
     For Each cRef In Me.AllItems
-        Set dRef = New Scripting.Dictionary
+        Set dRef = New Dictionary
         Set ref = cRef.Parent.DbObject
         With dRef
             If ref.Type = vbext_rk_Project Then
                 ' references of types mdb,accdb,mde etc don't have a GUID
                 .Add "File", FSO.GetFileName(ref.FullPath)
-                If Options.UseEncryption Then
-                    .Add "FullPath", Encrypt(ref.FullPath)
-                Else
-                    .Add "FullPath", ref.FullPath
-                End If
+                .Add "FullPath", Secure(ref.FullPath)
             Else
                 If ref.Guid <> vbNullString Then .Add "GUID", ref.Guid
                 .Add "Version", CStr(ref.Major) & "." & CStr(ref.Minor)
@@ -204,11 +200,11 @@ End Function
 ' Purpose   : Remove any source files for objects not in the current database.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_ClearOrphanedSourceFiles() As Variant
+Private Sub IDbComponent_ClearOrphanedSourceFiles()
     Dim strFile As String
     strFile = IDbComponent_BaseFolder & "references.csv"
     If FSO.FileExists(strFile) Then Kill strFile    ' Remove legacy file
-End Function
+End Sub
 
 
 '---------------------------------------------------------------------------------------

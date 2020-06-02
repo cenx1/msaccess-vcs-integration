@@ -107,6 +107,9 @@ Private Sub IDbComponent_Import(strFile As String)
     Dim strTemp As String
     Dim strImageFile As String
     Dim strOriginalName As String
+    Dim strBase As String
+    Dim lngIndex As Long
+    Dim proj As CurrentProject
     
     ' Read json header file
     Set dFile = ReadJsonFile(strFile)
@@ -125,7 +128,20 @@ Private Sub IDbComponent_Import(strFile As String)
         End If
         ' Reame image to original name
         ' Import as image, then rename back to image file name that matches json file.
-        CurrentProject.AddSharedImage dItem("Name"), strOriginalName
+        Set proj = CurrentProject
+        With proj
+            lngIndex = .Resources.Count
+            ' Import using the original file name as the resource name so the
+            ' embedded file has the correct name.
+            strBase = FSO.GetBaseName(strOriginalName)
+            .AddSharedImage strBase, strOriginalName
+            If .Resources.Count = lngIndex + 1 Then
+                ' Rename shared resource to saved name if different.
+                If strBase <> dItem("Name") Then
+                    .Resources(GetResourceIndexByName(strBase)).Name = dItem("Name")
+                End If
+            End If
+        End With
         ' Restore temp file if needed
         If strTemp <> vbNullString Then
             Name strTemp As strImageFile
@@ -136,6 +152,31 @@ Private Sub IDbComponent_Import(strFile As String)
     End If
 
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetResourceIndexByName
+' Author    : Adam Waller
+' Date      : 5/29/2020
+' Purpose   : Return the index of the shared resource after locating by name.
+'           : (This is needed because the new resource doesn't always have the
+'           :  highest index.)
+'---------------------------------------------------------------------------------------
+'
+Private Function GetResourceIndexByName(strName As String) As Long
+
+    Dim lngIndex As Long
+    Dim resShared As SharedResources
+    
+    Set resShared = CurrentProject.Resources
+    For lngIndex = 0 To resShared.Count - 1
+        If resShared(lngIndex).Name = strName Then
+            GetResourceIndexByName = lngIndex
+            Exit For
+        End If
+    Next lngIndex
+    
+End Function
 
 
 '---------------------------------------------------------------------------------------
@@ -150,8 +191,6 @@ Private Function IDbComponent_GetAllFromDB() As Collection
     Dim cImg As IDbComponent
     Dim rst As DAO.Recordset
     Dim strSQL As String
-    Dim fld2 As Field2
-    Dim rst2 As Recordset2
 
     ' Build collection if not already cached
     If m_AllItems Is Nothing Then
@@ -166,8 +205,6 @@ Private Function IDbComponent_GetAllFromDB() As Collection
             With rst
                 Do While Not .EOF
                     Set cImg = New clsDbSharedImage
-                    'Set fld2 = !Data
-                    'Set rst2 = fld2.Value
                     Set cImg.DbObject = rst    ' Reference to OLE object recordset2
                     m_AllItems.Add cImg, Nz(!Name)
                     .MoveNext
@@ -202,9 +239,9 @@ End Function
 ' Purpose   : Remove any source files for objects not in the current database.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_ClearOrphanedSourceFiles() As Variant
+Private Sub IDbComponent_ClearOrphanedSourceFiles()
     ClearOrphanedSourceFiles Me, "json", "jpg", "jpeg", "jpe", "gif", "png"
-End Function
+End Sub
 
 
 '---------------------------------------------------------------------------------------
@@ -217,6 +254,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Function IDbComponent_DateModified() As Date
+    IDbComponent_DateModified = 0
 End Function
 
 
@@ -350,6 +388,7 @@ Private Property Set IDbComponent_DbObject(ByVal RHS As Object)
     ' Load in the object details.
     m_Name = m_Rst!Name
     m_Extension = m_Rst!Extension
+    '@Ignore SetAssignmentWithIncompatibleObjectType
     Set fld2 = m_Rst!Data
     Set rst2 = fld2.Value
     m_FileName = rst2.Fields("FileName")
@@ -372,6 +411,7 @@ End Property
 '---------------------------------------------------------------------------------------
 '
 Private Property Get IDbComponent_SingleFile() As Boolean
+    IDbComponent_SingleFile = False
 End Property
 
 

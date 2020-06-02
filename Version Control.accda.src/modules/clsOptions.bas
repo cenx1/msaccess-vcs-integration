@@ -21,14 +21,33 @@ Public SaveQuerySQL As Boolean
 Public SaveTableSQL As Boolean
 Public StripPublishOption As Boolean
 Public AggressiveSanitize As Boolean
-Public TablesToExportData As Scripting.Dictionary
+Public TablesToExportData As Dictionary
 Public RunBeforeExport As String
 Public RunAfterExport As String
 Public RunAfterBuild As String
+Public Security As eSecurity
 Public KeyName As String
 Public UseEncryption As Boolean
 
-Private m_colOptions As New Collection
+' Constants for enum values
+' (These values are not permanently stored and
+'  may change between releases.)
+Private Const Enum_Security_Encrypt = 1
+Private Const Enum_Security_Remove = 2
+Private Const Enum_Security_None = 3
+Private Const Enum_Table_Format_TDF = 10
+Private Const Enum_Table_Format_XML = 11
+
+' Options for security
+Public Enum eSecurity
+    esEncrypt = Enum_Security_Encrypt
+    esRemove = Enum_Security_Remove
+    esNone = Enum_Security_None
+End Enum
+
+' Private collections for options and enum values.
+Private m_colOptions As Collection
+Private m_dEnum As Dictionary
 
 
 '---------------------------------------------------------------------------------------
@@ -50,9 +69,9 @@ Public Sub LoadDefaults()
         .SaveTableSQL = True
         .StripPublishOption = True
         .AggressiveSanitize = True
+        .Security = esEncrypt
         .KeyName = modEncrypt.DefaultKeyName
-        .UseEncryption = False
-        Set .TablesToExportData = New Scripting.Dictionary
+        Set .TablesToExportData = New Dictionary
         ' Save specific tables by default
         AddTableToExportData "USysRibbons", etdTabDelimited
         AddTableToExportData "USysRegInfo", etdTabDelimited
@@ -70,10 +89,10 @@ End Sub
 '
 Public Sub AddTableToExportData(strName As String, intExportFormat As eTableDataExportFormat)
     
-    Dim strFormat(etdTabDelimited To etdXML)
-    Dim dTable As Scripting.Dictionary
+    Dim strFormat(etdTabDelimited To etdXML) As String
+    Dim dTable As Dictionary
     
-    Set dTable = New Scripting.Dictionary
+    Set dTable = New Dictionary
     
     strFormat(etdTabDelimited) = "TabDelimited"
     strFormat(etdXML) = "XMLFormat"
@@ -131,7 +150,7 @@ End Sub
 '
 Public Sub LoadOptionsFromFile(strFile As String)
 
-    Dim dOptions As Scripting.Dictionary
+    Dim dOptions As Dictionary
     Dim varOption As Variant
     Dim strKey As String
     Dim strOptionsContent As String
@@ -153,6 +172,8 @@ Public Sub LoadOptionsFromFile(strFile As String)
                     Select Case strKey
                         Case "TablesToExportData"
                             Set Me.TablesToExportData = dOptions(strKey)
+                        Case "Security"
+                            Me.Security = GetEnumVal(dOptions(strKey))
                         Case Else
                             ' Regular top-level properties
                             CallByName Me, strKey, VbLet, dOptions(strKey)
@@ -225,18 +246,18 @@ End Function
 ' Purpose   : Serializes Options into a dictionary array for saving to file as JSON.
 '---------------------------------------------------------------------------------------
 '
-Private Function SerializeOptions() As Scripting.Dictionary
+Private Function SerializeOptions() As Dictionary
 
-    Dim dOptions As Scripting.Dictionary
-    Dim dInfo As Scripting.Dictionary
-    Dim dWrapper As Scripting.Dictionary
+    Dim dOptions As Dictionary
+    Dim dInfo As Dictionary
+    Dim dWrapper As Dictionary
     Dim varOption As Variant
     Dim strOption As String
     Dim strBit As String
     
-    Set dOptions = New Scripting.Dictionary
-    Set dInfo = New Scripting.Dictionary
-    Set dWrapper = New Scripting.Dictionary
+    Set dOptions = New Dictionary
+    Set dInfo = New Dictionary
+    Set dWrapper = New Dictionary
     
     ' Add some header information (For debugging or upgrading)
     #If Win64 Then
@@ -246,19 +267,22 @@ Private Function SerializeOptions() As Scripting.Dictionary
     #End If
     dInfo.Add "AddinVersion", AppVersion
     dInfo.Add "AccessVersion", Application.Version & strBit
-    If Options.UseEncryption Then
-        dInfo.Add "Hash", Encrypt(CodeProject.Name)
-    Else
-        dInfo.Add "Hash", CodeProject.Name & " - No Encryption"
-    End If
-        
+    If Me.Security = esEncrypt Then dInfo.Add "Hash", Encrypt(CodeProject.Name)
+    
+    ' Loop through options
     For Each varOption In m_colOptions
         strOption = CStr(varOption)
-        ' Simulate reflection to serialize properties
-        dOptions.Add CStr(strOption), CallByName(Me, strOption, VbGet)
+        Select Case strOption
+            Case "Security"
+                ' Translate enums to friendly names.
+                dOptions.Add strOption, GetEnumName(CallByName(Me, strOption, VbGet))
+            Case Else
+                ' Simulate reflection to serialize properties.
+                dOptions.Add strOption, CallByName(Me, strOption, VbGet)
+        End Select
     Next varOption
     
-    'Set SerializeOptions = New Scripting.Dictionary
+    'Set SerializeOptions = new Dictionary
     Set dWrapper("Info") = dInfo
     Set dWrapper("Options") = dOptions
     Set SerializeOptions = dWrapper
@@ -301,6 +325,37 @@ Public Function GetTableExportFormat(strKey As String) As eTableDataExportFormat
     Next intFormat
 End Function
 
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetEnumName
+' Author    : Adam Waller
+' Date      : 6/1/2020
+' Purpose   : Translate the enum value to name for saving to file.
+'---------------------------------------------------------------------------------------
+'
+Private Function GetEnumName(intVal As Integer) As String
+    If m_dEnum.Exists(intVal) Then GetEnumName = m_dEnum(intVal)
+End Function
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetEnumVal
+' Author    : Adam Waller
+' Date      : 6/1/2020
+' Purpose   : Get enum value when reading string name from file.
+'---------------------------------------------------------------------------------------
+'
+Private Function GetEnumVal(strName As String) As Integer
+    Dim varKey As Variant
+    For Each varKey In m_dEnum.Keys
+        If m_dEnum(varKey) = strName Then
+            GetEnumVal = varKey
+            Exit For
+        End If
+    Next varKey
+End Function
+
+
 '---------------------------------------------------------------------------------------
 ' Procedure : Class_Initialize
 ' Author    : Adam Waller
@@ -309,6 +364,17 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Sub Class_Initialize()
+    
+    ' Initialize the options collection
+    Set m_colOptions = New Collection
+    
+    ' Load enum values
+    Set m_dEnum = New Dictionary
+    With m_dEnum
+        .Add Enum_Security_Encrypt, "Encrypt"
+        .Add Enum_Security_Remove, "Remove"
+        .Add Enum_Security_None, "None"
+    End With
     
     ' Load list of property names for reflection type behavior.
     With m_colOptions
@@ -324,6 +390,7 @@ Private Sub Class_Initialize()
         .Add "RunBeforeExport"
         .Add "RunAfterExport"
         .Add "RunAfterBuild"
+        .Add "Security"
         .Add "KeyName"
         .Add "UseEncryption"
     End With
