@@ -189,8 +189,6 @@ Begin Form
                 End
                 Begin CommandButton
                     OverlapFlags =93
-                    TextFontCharSet =177
-                    TextFontFamily =0
                     Left =4740
                     Top =2400
                     Width =2880
@@ -727,8 +725,6 @@ Begin Form
                 End
                 Begin CommandButton
                     OverlapFlags =93
-                    TextFontCharSet =177
-                    TextFontFamily =0
                     Left =4740
                     Top =3780
                     Width =2880
@@ -1330,8 +1326,6 @@ Begin Form
                 Begin CommandButton
                     Cancel = NotDefault
                     OverlapFlags =85
-                    TextFontCharSet =177
-                    TextFontFamily =0
                     Left =7680
                     Top =5940
                     Width =1500
@@ -1373,8 +1367,6 @@ Begin Form
                 End
                 Begin CommandButton
                     OverlapFlags =223
-                    TextFontCharSet =177
-                    TextFontFamily =0
                     Left =6480
                     Top =1200
                     Width =1560
@@ -1479,8 +1471,6 @@ Begin Form
                 End
                 Begin CommandButton
                     OverlapFlags =223
-                    TextFontCharSet =177
-                    TextFontFamily =0
                     Left =8100
                     Top =1200
                     Width =1080

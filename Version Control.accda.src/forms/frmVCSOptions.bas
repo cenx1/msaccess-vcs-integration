@@ -1,4 +1,4 @@
-﻿Version =20
+Version =20
 VersionRequired =20
 Begin Form
     PopUp = NotDefault
@@ -16,12 +16,12 @@ Begin Form
     GridY =24
     Width =10080
     DatasheetFontHeight =11
-    ItemSuffix =112
-    Left =16770
-    Top =3390
-    Right =-20431
-    Bottom =21855
-    DatasheetGridlinesColor =15132391
+    ItemSuffix =111
+    Left =-21975
+    Top =2430
+    Right =-255
+    Bottom =14565
+    DatasheetGridlinesColor =14806254
     RecSrcDt = Begin
         0x79e78b777268e540
     End
@@ -410,7 +410,7 @@ Begin Form
                     Left =540
                     Top =1500
                     Width =9000
-                    Height =4965
+                    Height =4875
                     TabIndex =2
                     Name ="tabOptions"
                     GridlineColor =10921638
@@ -418,7 +418,7 @@ Begin Form
                     LayoutCachedLeft =540
                     LayoutCachedTop =1500
                     LayoutCachedWidth =9540
-                    LayoutCachedHeight =6465
+                    LayoutCachedHeight =6375
                     ThemeFontIndex =1
                     Shape =1
                     Gradient =12
@@ -441,7 +441,7 @@ Begin Form
                             Left =615
                             Top =1980
                             Width =8850
-                            Height =4410
+                            Height =4320
                             BorderColor =10921638
                             Name ="pgeGeneral"
                             Caption ="General"
@@ -449,7 +449,7 @@ Begin Form
                             LayoutCachedLeft =615
                             LayoutCachedTop =1980
                             LayoutCachedWidth =9465
-                            LayoutCachedHeight =6390
+                            LayoutCachedHeight =6300
                             WebImagePaddingLeft =2
                             WebImagePaddingTop =2
                             WebImagePaddingRight =2
@@ -858,8 +858,8 @@ Begin Form
                                     Left =6780
                                     Top =5580
                                     Width =2340
-                                    TabIndex =10
-                                    ForeColor =12673797
+                                    TabIndex =11
+                                    ForeColor =16711680
                                     Name ="cmdExplainOptions"
                                     Caption ="Explain options..."
                                     HyperlinkAddress ="https://github.com/joyfullservice/msaccess-vcs-integration/wiki/Documentation#op"
@@ -949,58 +949,6 @@ Begin Form
                                     LayoutCachedWidth =8580
                                     LayoutCachedHeight =2640
                                 End
-                                Begin CheckBox
-                                    OverlapFlags =215
-                                    Left =4745
-                                    Top =4215
-                                    TabIndex =11
-                                    BorderColor =10921638
-                                    Name ="chkUseEncryption"
-                                    GridlineColor =10921638
-
-                                    LayoutCachedLeft =4745
-                                    LayoutCachedTop =4215
-                                    LayoutCachedWidth =5005
-                                    LayoutCachedHeight =4455
-                                    Begin
-                                        Begin Label
-                                            OverlapFlags =215
-                                            Left =5031
-                                            Top =4133
-                                            Width =2640
-                                            Height =315
-                                            BorderColor =8355711
-                                            ForeColor =5324600
-                                            Name ="Label39"
-                                            Caption ="Use Encryption"
-                                            GridlineColor =10921638
-                                            LayoutCachedLeft =5031
-                                            LayoutCachedTop =4133
-                                            LayoutCachedWidth =7671
-                                            LayoutCachedHeight =4448
-                                            ForeThemeColorIndex =-1
-                                            ForeTint =100.0
-                                        End
-                                    End
-                                End
-                                Begin Label
-                                    OverlapFlags =215
-                                    Left =1545
-                                    Top =6054
-                                    Width =2640
-                                    Height =315
-                                    BorderColor =8355711
-                                    ForeColor =5324600
-                                    Name ="Mærkat111"
-                                    Caption ="Save Table SQL"
-                                    GridlineColor =10921638
-                                    LayoutCachedLeft =1545
-                                    LayoutCachedTop =6054
-                                    LayoutCachedWidth =4185
-                                    LayoutCachedHeight =6369
-                                    ForeThemeColorIndex =-1
-                                    ForeTint =100.0
-                                End
                             End
                         End
                         Begin Page
@@ -1008,7 +956,7 @@ Begin Form
                             Left =615
                             Top =1980
                             Width =8850
-                            Height =4410
+                            Height =4320
                             BorderColor =10921638
                             Name ="pgeTable"
                             Caption ="Table Data"
@@ -1016,7 +964,7 @@ Begin Form
                             LayoutCachedLeft =615
                             LayoutCachedTop =1980
                             LayoutCachedWidth =9465
-                            LayoutCachedHeight =6390
+                            LayoutCachedHeight =6300
                             WebImagePaddingLeft =2
                             WebImagePaddingTop =2
                             WebImagePaddingRight =2
@@ -1171,7 +1119,7 @@ Begin Form
                                     Height =315
                                     TabIndex =4
                                     BorderColor =10921638
-                                    ForeColor =3484194
+                                    ForeColor =4138256
                                     Name ="cboTableDataSaveType"
                                     RowSourceType ="Value List"
                                     RowSource ="No Data;Tab Delimited;XML Format"
@@ -1345,7 +1293,7 @@ Begin Form
                                     FontSize =10
                                     BackColor =14262935
                                     BorderColor =15321539
-                                    ForeColor =12673797
+                                    ForeColor =16711680
                                     Name ="lblAddOtherTable"
                                     Caption ="Other..."
                                     OnClick ="[Event Procedure]"
@@ -1368,7 +1316,7 @@ Begin Form
                             Left =615
                             Top =1980
                             Width =8850
-                            Height =4410
+                            Height =4320
                             BorderColor =10921638
                             Name ="pgeBuild"
                             Caption ="Build"
@@ -1376,7 +1324,7 @@ Begin Form
                             LayoutCachedLeft =615
                             LayoutCachedTop =1980
                             LayoutCachedWidth =9465
-                            LayoutCachedHeight =6390
+                            LayoutCachedHeight =6300
                             WebImagePaddingLeft =2
                             WebImagePaddingTop =2
                             WebImagePaddingRight =2
@@ -1450,7 +1398,7 @@ Begin Form
                             Left =615
                             Top =1980
                             Width =8850
-                            Height =4410
+                            Height =4320
                             BorderColor =10921638
                             Name ="pgeEncrypt"
                             Caption ="Encryption"
@@ -1458,7 +1406,7 @@ Begin Form
                             LayoutCachedLeft =615
                             LayoutCachedTop =1980
                             LayoutCachedWidth =9465
-                            LayoutCachedHeight =6390
+                            LayoutCachedHeight =6300
                             WebImagePaddingLeft =2
                             WebImagePaddingTop =2
                             WebImagePaddingRight =2
@@ -1555,7 +1503,7 @@ Begin Form
                                     Top =4860
                                     Width =1560
                                     TabIndex =1
-                                    ForeColor =12673797
+                                    ForeColor =16711680
                                     Name ="cmdEncryptionDetails"
                                     Caption ="Details..."
                                     HyperlinkAddress ="https://github.com/joyfullservice/msaccess-vcs-integration/wiki/Encryption"
@@ -1724,7 +1672,7 @@ Begin Form
                             Left =615
                             Top =1980
                             Width =8850
-                            Height =4410
+                            Height =4320
                             BorderColor =10921638
                             Name ="pgeSettings"
                             Caption ="Settings"
@@ -1732,7 +1680,7 @@ Begin Form
                             LayoutCachedLeft =615
                             LayoutCachedTop =1980
                             LayoutCachedWidth =9465
-                            LayoutCachedHeight =6390
+                            LayoutCachedHeight =6300
                             WebImagePaddingLeft =2
                             WebImagePaddingTop =2
                             WebImagePaddingRight =2
@@ -2214,7 +2162,7 @@ Begin Form
                     Top =1260
                     Width =1560
                     TabIndex =3
-                    ForeColor =12673797
+                    ForeColor =16711680
                     Name ="cmdSeeDocs"
                     Caption ="See Docs..."
                     HyperlinkAddress ="https://github.com/joyfullservice/msaccess-vcs-integration/wiki/Documentation"
