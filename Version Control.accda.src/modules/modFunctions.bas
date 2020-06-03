@@ -1609,7 +1609,7 @@ Public Sub LoadComponentFromText(intType As AcObjectType, strName As String, str
     If blnConvert Then
         ' Perform file conversion, and import from temp file.
         strTempFile = GetTempFile
-        ConvertUtf8Ucs2 strFile, strTempFile
+        ConvertUtf8Ucs2 strFile, strTempFile, False
         Application.LoadFromText intType, strName, strTempFile
         Kill strTempFile
     Else
