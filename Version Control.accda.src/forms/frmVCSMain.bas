@@ -9,6 +9,8 @@ Begin Form
     AllowDesignChanges = NotDefault
     DefaultView =0
     ScrollBars =0
+    TabularCharSet =177
+    TabularFamily =0
     BorderStyle =3
     PictureAlignment =2
     DatasheetGridlinesBehavior =3
@@ -17,11 +19,11 @@ Begin Form
     Width =9360
     DatasheetFontHeight =11
     ItemSuffix =20
-    Left =-21975
-    Top =2430
-    Right =-255
-    Bottom =14565
-    DatasheetGridlinesColor =14806254
+    Left =22035
+    Top =3390
+    Right =-19951
+    Bottom =21855
+    DatasheetGridlinesColor =15132391
     RecSrcDt = Begin
         0x79e78b777268e540
     End
@@ -169,6 +171,8 @@ Begin Form
                 End
                 Begin Label
                     OverlapFlags =223
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     Left =360
                     Top =300
                     Width =4260
@@ -189,6 +193,8 @@ Begin Form
                 End
                 Begin CommandButton
                     OverlapFlags =93
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     Left =4740
                     Top =2400
                     Width =2880
@@ -705,6 +711,8 @@ Begin Form
                 End
                 Begin Label
                     OverlapFlags =85
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     Left =540
                     Top =2100
                     Width =2100
@@ -725,6 +733,8 @@ Begin Form
                 End
                 Begin CommandButton
                     OverlapFlags =93
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     Left =4740
                     Top =3780
                     Width =2880
@@ -1259,6 +1269,8 @@ Begin Form
                 End
                 Begin Label
                     OverlapFlags =85
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     Left =540
                     Top =2580
                     Width =2400
@@ -1278,6 +1290,8 @@ Begin Form
                 End
                 Begin Label
                     OverlapFlags =215
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     Left =540
                     Top =840
                     Width =1800
@@ -1299,6 +1313,8 @@ Begin Form
                     TabStop = NotDefault
                     OldBorderStyle =0
                     OverlapFlags =85
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     BackStyle =0
                     IMESentenceMode =3
                     Left =780
@@ -1326,6 +1342,8 @@ Begin Form
                 Begin CommandButton
                     Cancel = NotDefault
                     OverlapFlags =85
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     Left =7680
                     Top =5940
                     Width =1500
@@ -1367,6 +1385,8 @@ Begin Form
                 End
                 Begin CommandButton
                     OverlapFlags =223
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     Left =6480
                     Top =1200
                     Width =1560
@@ -1448,6 +1468,8 @@ Begin Form
                 End
                 Begin Label
                     OverlapFlags =85
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     Left =300
                     Top =5940
                     Width =3375
@@ -1471,6 +1493,8 @@ Begin Form
                 End
                 Begin CommandButton
                     OverlapFlags =223
+                    TextFontCharSet =177
+                    TextFontFamily =0
                     Left =8100
                     Top =1200
                     Width =1080
@@ -1552,7 +1576,9 @@ Begin Form
                 End
                 Begin Label
                     OverlapFlags =215
+                    TextFontCharSet =177
                     TextAlign =3
+                    TextFontFamily =0
                     Left =5820
                     Top =480
                     Width =3180

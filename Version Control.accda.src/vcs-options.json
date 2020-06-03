@@ -1,23 +1,24 @@
 {
   "Info": {
     "AddinVersion": "3.1.35",
-    "AccessVersion": "14.0 32-bit",
-    "Hash": "@{7206d6328b5c80f8ceae447eb65c6abd23260569ff1ffc94}"
+    "AccessVersion": "16.0 64-bit"
   },
   "Options": {
     "ExportFolder": "",
     "ShowDebug": false,
     "UseFastSave": false,
-    "SavePrintVars": true,
+    "SavePrintVars": false,
     "SaveQuerySQL": true,
     "SaveTableSQL": true,
     "StripPublishOption": true,
     "AggressiveSanitize": true,
-    "TablesToExportData": {},
+    "TablesToExportData": {
+    },
     "RunBeforeExport": "",
     "RunAfterExport": "",
     "RunAfterBuild": "",
-    "Security": "Encrypt",
-    "KeyName": "VCS"
+    "Security": "None",
+    "KeyName": "VCS",
+    "UseEncryption": false
   }
 }

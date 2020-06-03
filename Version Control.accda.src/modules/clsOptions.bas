@@ -27,7 +27,6 @@ Public RunAfterExport As String
 Public RunAfterBuild As String
 Public Security As eSecurity
 Public KeyName As String
-Public UseEncryption As Boolean
 
 ' Constants for enum values
 ' (These values are not permanently stored and
@@ -393,7 +392,6 @@ Private Sub Class_Initialize()
         .Add "RunAfterBuild"
         .Add "Security"
         .Add "KeyName"
-        .Add "UseEncryption"
     End With
     
     ' Load default values
