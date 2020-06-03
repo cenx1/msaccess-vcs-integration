@@ -117,6 +117,7 @@ Private Declare PtrSafe Function DocumentProperties Lib "winspool.drv" Alias "Do
 Public Enum ePrintEnum
     ' Access constants
     epeColor
+    epeColumnLayout
     epeDuplex
     epeOrientation
     epePaperBin
@@ -186,6 +187,9 @@ Public Sub LoadFromExportFile(strFile As String)
     Dim intBlock As Integer
     Dim strLine As String
     Dim lngChar As Long
+    Dim lngPos As Long
+    Dim stm As Scripting.TextStream
+    
     
     Dim udtMipBuffer As tMipBuffer
     Dim udtDevModeBuffer As tDevModeBuffer
@@ -198,8 +202,15 @@ Public Sub LoadFromExportFile(strFile As String)
 
     If Not FSO.FileExists(strFile) Then Exit Sub
     
+    ' Open the text file, checking to see if it is in UCS format
+    If FileIsUCS2Format(strFile) Then
+        Set stm = FSO.OpenTextFile(strFile, ForReading, False, TristateTrue)
+    Else
+        Set stm = FSO.OpenTextFile(strFile, ForReading, False)
+    End If
+    
     ' Read the text file line by line, loading the block data
-    With FSO.OpenTextFile(strFile, ForReading, False)
+    With stm
         Do While Not .AtEndOfStream
             strLine = Trim$(.ReadLine)
             ' Look for header if not inside block
@@ -237,32 +248,33 @@ Public Sub LoadFromExportFile(strFile As String)
     ' Convert hex block data to string
     strChar = "&h00"
     For intBlock = 1 To 3
-        strHex = cBlock(intBlock).GetStr
-        Set cBuffer(intBlock) = New clsConcat
-        ' Each two hex characters represent one bit
-        ReDim bteBuffer(0 To (Len(strHex) / 2) - 1)
-        ' Loop through each set of 2 characters to get bytes
-        For lngChar = 1 To Len(strHex) Step 2
-            ' Apply two characters to buffer. (Faster than concatenating strings)
-            Mid$(strChar, 3, 2) = Mid$(strHex, lngChar, 2)
-            bteBuffer(lngChar / 2 - 1) = CLng(strChar)
-        Next lngChar
-        Select Case intBlock
-            Case 1
-                udtMipBuffer.strBuffer = bteBuffer
-                LSet m_tMip = udtMipBuffer
-            Case 2
-                udtDevModeBuffer.strBuffer = bteBuffer
-                LSet m_tDevMode = udtDevModeBuffer
-            Case 3
-                udtDevNamesBuffer.strBuffer = bteBuffer
-                LSet m_tDevNames = udtDevNamesBuffer
-        End Select
-        'Stop
-        
+        ' Block will not be created if not found in source file.
+        ' (Such as a file that was already sanitized.)
+        If Not cBlock(intBlock) Is Nothing Then
+            strHex = cBlock(intBlock).GetStr
+            Set cBuffer(intBlock) = New clsConcat
+            ' Each two hex characters represent one bit
+            ReDim bteBuffer(0 To (Len(strHex) / 2) - 1)
+            ' Loop through each set of 2 characters to get bytes
+            For lngChar = 1 To Len(strHex) Step 2
+                ' Apply two characters to buffer. (Faster than concatenating strings)
+                Mid$(strChar, 3, 2) = Mid$(strHex, lngChar, 2)
+                lngPos = ((lngChar + 1) / 2) - 1
+                bteBuffer(lngPos) = CLng(strChar)
+            Next lngChar
+            Select Case intBlock
+                Case 1
+                    udtMipBuffer.strBuffer = bteBuffer
+                    LSet m_tMip = udtMipBuffer
+                Case 2
+                    udtDevModeBuffer.strBuffer = bteBuffer
+                    LSet m_tDevMode = udtDevModeBuffer
+                Case 3
+                    udtDevNamesBuffer.strBuffer = bteBuffer
+                    LSet m_tDevNames = udtDevNamesBuffer
+            End Select
+        End If
     Next intBlock
-    
-    Stop
     
 End Sub
 
@@ -295,7 +307,7 @@ End Sub
 '           : http://www.lessanvaezi.com/changing-printer-settings-using-the-windows-api/
 '---------------------------------------------------------------------------------------
 '
-Public Function LoadFromPrinter(strPrinter As String) As Variant
+Public Sub LoadFromPrinter(strPrinter As String)
 
     ' API constants for reading printer properties
     Const READ_CONTROL = &H20000
@@ -335,11 +347,11 @@ Public Function LoadFromPrinter(strPrinter As String) As Variant
     ' Close printer handle
     If hPrinter <> 0 Then ClosePrinter hPrinter
 
-End Function
+End Sub
 
 
 '---------------------------------------------------------------------------------------
-' Procedure : LoadFromReport
+' Procedure : LoadFromReport/Form
 ' Author    : Adam Waller
 ' Date      : 5/19/2020
 ' Purpose   : Wrapper functions for loading objects by type.
@@ -392,8 +404,6 @@ Public Function IsDifferentFromDefault(Optional cDefault As clsDevMode) As Boole
         cDefault.LoadFromDefaultPrinter
     End If
     
-    
-
 End Function
 
 
@@ -406,9 +416,11 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Public Function GetDictionary() As Dictionary
-    
-    Set GetDictionary = DevModeToDictionary()
-    
+    Set GetDictionary = New Dictionary
+    With GetDictionary
+        .Add "Printer", DevModeToDictionary()
+        .Add "Margins", MipToDictionary()
+    End With
 End Function
 
 
@@ -525,6 +537,7 @@ Private Function DevModeToDictionary() As Dictionary
     'Const DM_PANNINGWIDTH = &H20000000
     'Const DM_PANNINGHEIGHT = &H40000000
     
+    Dim strName As String
     Dim lngFld As Long
     Dim cDM As tDevMode
 
@@ -534,7 +547,8 @@ Private Function DevModeToDictionary() As Dictionary
     Set DevModeToDictionary = New Dictionary
     
     With DevModeToDictionary
-        .Add "DeviceName", NTrim(StrConv(cDM.strDeviceName, vbUnicode))
+        strName = NTrim(StrConv(cDM.strDeviceName, vbUnicode))
+        If strName <> vbNullString Then .Add "DeviceName", strName
         '.Add "SpecVersion", cDM.intSpecVersion
         '.Add "DriverVersion", cDM.intDriverVersion
         '.Add "Size", cDM.intSize
@@ -567,6 +581,54 @@ Private Function DevModeToDictionary() As Dictionary
         '.Add "Reserved1", cDM.lngReserved1
         '.Add "Reserved2", cDM.lngReserved2
     End With
+    
+End Function
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : MipToDictionary
+' Author    : Adam Waller
+' Date      : 6/2/2020
+' Purpose   : Convert the printer margins to a dictionary object. Use inches for sizes
+'           : to match what the user sees in the margin dialogs. (1440 twips per inch)
+'---------------------------------------------------------------------------------------
+'
+Private Function MipToDictionary() As Dictionary
+
+    Dim cMip As tMip
+
+    LSet cMip = m_tMip
+    Set MipToDictionary = New Dictionary
+    
+    With MipToDictionary
+        .Add "LeftMargin", GetInch(cMip.xLeftMargin)
+        .Add "TopMargin", GetInch(cMip.yTopMargin)
+        .Add "RightMargin", GetInch(cMip.xRightMargin)
+        .Add "BotMargin", GetInch(cMip.yBotMargin)
+        .Add "DataOnly", CBool(cMip.fDataOnly)
+        .Add "Width", GetInch(cMip.xWidth)
+        .Add "Height", GetInch(cMip.yHeight)
+        .Add "DefaultSize", CBool(cMip.fDefaultSize)
+        .Add "Columns", cMip.cxColumns
+        .Add "ColumnSpacing", GetInch(cMip.yColumnSpacing)
+        .Add "RowSpacing", GetInch(cMip.xRowSpacing)
+        .Add "ItemLayout", GetEnum(epeColumnLayout, cMip.rItemLayout)
+        '.Add "FastPrint", cMip.fFastPrint  ' Reserved
+        '.Add "Datasheet", cMip.fDatasheet  ' Reserved
+    End With
+
+End Function
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetInch
+' Author    : Adam Waller
+' Date      : 6/2/2020
+' Purpose   : Convert a twips value to inches, rounded to 4 decimal places.
+'---------------------------------------------------------------------------------------
+'
+Private Function GetInch(lngTwips As Long) As Single
+    GetInch = Round(lngTwips / 1440, 4)
 End Function
 
 
@@ -698,7 +760,7 @@ End Function
 '           : http://www.jasinskionline.com/windowsapi/ref/d/devmode.html
 '---------------------------------------------------------------------------------------
 '
-Private Function BuildEnum(eType As ePrintEnum) As Variant
+Private Sub BuildEnum(eType As ePrintEnum)
 
     Set m_dEnum(eType) = New Dictionary
     With m_dEnum(eType)
@@ -781,7 +843,11 @@ Private Function BuildEnum(eType As ePrintEnum) As Variant
                 .Add acPRPSStatement, "Statement"
                 .Add acPRPSTabloid, "Tabloid"
                 .Add acPRPSUser, "User-Defined"
-            
+                
+            Case epeColumnLayout
+                .Add acPRHorizontalColumnLayout, "Horizontal Columns"
+                .Add acPRVerticalColumnLayout, "Vertical Columns"
+                
             '--------------------
             ' API constants
             '--------------------
@@ -826,7 +892,7 @@ Private Function BuildEnum(eType As ePrintEnum) As Variant
         End Select
     End With
 
-End Function
+End Sub
 
 
 '---------------------------------------------------------------------------------------

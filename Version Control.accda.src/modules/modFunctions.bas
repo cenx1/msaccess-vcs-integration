@@ -985,7 +985,7 @@ End Function
 ' Purpose   : Show the VBA code editor (used in autoexec macro)
 '---------------------------------------------------------------------------------------
 '
-Public Function ShowIDE() As Variant
+Public Function ShowIDE() As Boolean
     DoCmd.RunCommand acCmdVisualBasicEditor
     DoEvents
     ShowIDE = True
@@ -1320,15 +1320,38 @@ End Function
 ' Date      : 4/24/2020
 ' Purpose   : Creates a json file with an info header giving some clues about the
 '           : contents of the file. (Helps with upgrades or changes later.)
+'           : Set blnIgnoreHeaderOnlyChanges to true when the file should only be
+'           : written when the dItems dictionary value changes. This helps reduce the
+'           : number of files marked as changed when the actual content is the same,
+'           : but a newer version of VCS was used to export the file.
 '---------------------------------------------------------------------------------------
 '
-Public Sub WriteJsonFile(ClassMe As Object, dItems As Dictionary, strFile As String, strDescription As String)
+Public Sub WriteJsonFile(ClassMe As Object, dItems As Dictionary, strFile As String, strDescription As String, _
+    Optional blnIgnoreHeaderOnlyChanges As Boolean = True)
     
     Dim dContents As Dictionary
     Dim dHeader As Dictionary
+    Dim dFile As Dictionary
+    Dim dExisting As Dictionary
     
     Set dContents = New Dictionary
     Set dHeader = New Dictionary
+    
+    ' Compare with existing file
+    If blnIgnoreHeaderOnlyChanges Then
+        If FSO.FileExists(strFile) Then
+            Set dFile = ReadJsonFile(strFile)
+            If Not dFile Is Nothing Then
+                If dFile.Exists("Items") Then
+                    Set dExisting = dFile("Items")
+                    If DictionaryEqual(dItems, dExisting) Then
+                        ' No changes to content. Leave existing file.
+                        Exit Sub
+                    End If
+                End If
+            End If
+        End If
+    End If
     
     ' Build dictionary structure
     dHeader.Add "Class", TypeName(ClassMe)
@@ -1957,16 +1980,55 @@ Public Function Secure(strText As String) As String
 End Function
 
 
+'---------------------------------------------------------------------------------------
+' Procedure : DictionaryEqual
+' Author    : Adam Waller
+' Date      : 6/2/2020
+' Purpose   : Returns true if the two dictionary objects are equal in values to each
+'           : other, including nested values. Testing the quickest comparisons first
+'           : to make the function as performant as possible.
+'---------------------------------------------------------------------------------------
+'
+Public Function DictionaryEqual(dOne As Dictionary, dTwo As Dictionary) As Boolean
+
+    Dim strOne As String
+    Dim strTwo As String
+    Dim blnEqual As Boolean
+    
+    If dOne Is Nothing And dTwo Is Nothing Then
+        ' Neither object set.
+        blnEqual = True
+    ElseIf Not dOne Is Nothing And Not dTwo Is Nothing Then
+        ' Both are objects. Check count property.
+        If dOne.Count = dTwo.Count Then
+            strOne = ConvertToJson(dOne)
+            strTwo = ConvertToJson(dTwo)
+            ' Compare string length
+            If Len(strOne) = Len(strTwo) Then
+                ' Perform a binary (case-sensitive) comparison of strings.
+                blnEqual = (StrComp(strOne, strTwo, vbBinaryCompare) = 0)
+            End If
+        End If
+    End If
+    
+    ' Return comparison result
+    DictionaryEqual = blnEqual
+    
+End Function
+
+
 Public Sub TestPrinterFunctions()
 
     Dim cPrinter As New clsDevMode
     Dim dPrinter As Dictionary
     
     With cPrinter
-        .LoadFromPrinter ("C552 Color")
+        '.LoadFromPrinter ("C552 Color")
+        'Set dPrinter = .GetDictionary
+        '.LoadFromExportFile CodeProject.Path & "\Testing\Testing.accdb.src\reports\rptDefaultPrinter.bas"
+        .LoadFromExportFile CodeProject.Path & "\rptTest.bas"
         Set dPrinter = .GetDictionary
-        .LoadFromExportFile CodeProject.Path & "\Testing\Testing.accdb.src\reports\rptDefaultPrinter.bas"
-        'Debug.Print ConvertToJson(dPrinter, 4)
-        
+        Debug.Print ConvertToJson(dPrinter, 4)
+        'Stop
     End With
 End Sub
