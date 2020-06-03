@@ -164,8 +164,12 @@ Public Sub ConvertUcs2Utf8(strSourceFile As String, strDestinationFile As String
         ' Remove the source (temp) file if specified
         If blnDeleteSourceFileAfterConversion Then Kill strSourceFile
     Else
-        ' No conversion needed, move to destination.
-        FSO.MoveFile strSourceFile, strDestinationFile
+        ' No conversion needed, move/copy to destination.
+        If blnDeleteSourceFileAfterConversion Then
+            FSO.MoveFile strSourceFile, strDestinationFile
+        Else
+            FSO.CopyFile strSourceFile, strDestinationFile
+        End If
     End If
     
 End Sub
@@ -192,8 +196,12 @@ Public Sub ConvertUtf8Ucs2(strSourceFile As String, strDestinationFile As String
     If FSO.FileExists(strDestinationFile) Then Kill strDestinationFile
     
     If FileIsUCS2Format(strSourceFile) Then
-        ' No conversion needed, send to destination as is
-        FSO.MoveFile strSourceFile, strDestinationFile
+        ' No conversion needed, move/copy to destination.
+        If blnDeleteSourceFileAfterConversion Then
+            FSO.MoveFile strSourceFile, strDestinationFile
+        Else
+            FSO.CopyFile strSourceFile, strDestinationFile
+        End If
     Else
         ' Read file contents
         fnum = FreeFile
@@ -212,7 +220,7 @@ Public Sub ConvertUtf8Ucs2(strSourceFile As String, strDestinationFile As String
             .Close
         End With
         
-        Kill strSourceFile
+        If blnDeleteSourceFileAfterConversion Then Kill strSourceFile
     End If
     
 End Sub

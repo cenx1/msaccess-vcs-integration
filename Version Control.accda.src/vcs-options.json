@@ -18,7 +18,6 @@
     "RunAfterExport": "",
     "RunAfterBuild": "",
     "Security": "None",
-    "KeyName": "VCS",
-    "UseEncryption": false
+    "KeyName": "VCS"
   }
 }

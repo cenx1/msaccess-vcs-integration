@@ -1208,24 +1208,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Public Function GetVBProjectForCurrentDB() As VBProject
-
-    Dim objProj As Object
-    Dim strPath As String
-    
-    strPath = CurrentProject.FullName
-    If VBE.ActiveVBProject.FileName = strPath Then
-        ' Use currently active project
-        Set GetVBProjectForCurrentDB = VBE.ActiveVBProject
-    Else
-        ' Search for project with matching filename.
-        For Each objProj In VBE.VBProjects
-            If objProj.FileName = strPath Then
-                Set GetVBProjectForCurrentDB = objProj
-                Exit For
-            End If
-        Next objProj
-    End If
-    
+    Set GetVBProjectForCurrentDB = GetProjectByName(CurrentProject.FullName)
 End Function
 
 
@@ -1237,24 +1220,34 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Public Function GetCodeVBProject() As VBProject
+    Set GetCodeVBProject = GetProjectByName(CodeProject.FullName)
+End Function
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetProjectByName
+' Author    : Adam Waller
+' Date      : 5/26/2020
+' Purpose   : Return the VBProject by file path.
+'---------------------------------------------------------------------------------------
+'
+Private Function GetProjectByName(ByVal strPath As String) As VBProject
 
     Dim objProj As VBIDE.VBProject
-    Dim strPath As String
+        
+    ' Use currently active project by default
+    Set GetProjectByName = VBE.ActiveVBProject
     
-    strPath = CodeProject.FullName
-    If VBE.ActiveVBProject.FileName = strPath Then
-        ' Use currently active project
-        Set GetCodeVBProject = VBE.ActiveVBProject
-    Else
+    If VBE.ActiveVBProject.FileName <> strPath Then
         ' Search for project with matching filename.
         For Each objProj In VBE.VBProjects
             If objProj.FileName = strPath Then
-                Set GetCodeVBProject = objProj
+                Set GetProjectByName = objProj
                 Exit For
             End If
         Next objProj
     End If
-
+    
 End Function
 
 
@@ -1603,24 +1596,69 @@ End Sub
 Public Sub LoadComponentFromText(intType As AcObjectType, strName As String, strFile As String)
 
     Dim strTempFile As String
-    Dim strTempFile2 As String
+    Dim blnConvert As Boolean
     
-    strTempFile = GetTempFile
-    strTempFile2 = GetTempFile
-    FSO.CopyFile strFile, strTempFile
-    
+    ' Check UCS-2-LE requirement for the current database.
+    ' (Cached after first call)
     Select Case intType
-        Case acForm, acReport, acQuery, acMacro
-            ' Handle UCS conversion if needed
-            ConvertUtf8Ucs2 strTempFile, strTempFile2
-        Case Else
-            strTempFile2 = strTempFile
+        Case acForm, acReport, acQuery, acMacro, acTableDataMacro
+            blnConvert = RequiresUcs2
     End Select
     
-    Application.LoadFromText intType, strName, strTempFile2
+    ' Only run conversion if needed.
+    If blnConvert Then
+        ' Perform file conversion, and import from temp file.
+        strTempFile = GetTempFile
+        ConvertUtf8Ucs2 strFile, strTempFile
+        Application.LoadFromText intType, strName, strTempFile
+        Kill strTempFile
+    Else
+        ' Load UTF-8 file
+        Application.LoadFromText intType, strName, strFile
+    End If
     
 End Sub
 
+
+'---------------------------------------------------------------------------------------
+' Procedure : SecureBetween
+' Author    : Casper Englund
+' Date      : 2020-06-03
+' Purpose   : Secures content between two strings.
+'---------------------------------------------------------------------------------------
+'
+Public Function SecureBetween(strText As String, strStartAfter As String, strEndBefore As String, Optional Compare As VbCompareMethod) As String
+        
+        If strText = vbNullString Or Options.Security = esNone Then
+            SecureBetween = strText
+        Else
+            If Options.Security = esEncrypt Then
+                SecureBetween = EncryptBetween(strText, strStartAfter, strEndBefore, Compare)
+            ElseIf Options.Security = esRemove Then
+                Dim lngPos As Long
+                Dim lngStart As Long
+                Dim lngLen As Long
+                
+                lngPos = InStr(1, strText, strStartAfter, Compare)
+                If lngPos > 0 Then
+                    lngStart = lngPos + Len(strStartAfter) - 1
+                    lngPos = InStr(lngStart + 1, strText, strEndBefore)
+                    If lngPos > 0 Then
+                        lngLen = lngPos - lngStart
+                    End If
+                End If
+                
+                If lngLen = 0 Then
+                    ' No tags found. Return original string
+                    SecureBetween = strText
+                Else
+                    SecureBetween = Left$(strText, lngStart) & Mid$(strText, lngStart + lngLen)
+                End If
+    
+            End If
+        End If
+        
+End Function
 
 '---------------------------------------------------------------------------------------
 ' Procedure : SecurePath
