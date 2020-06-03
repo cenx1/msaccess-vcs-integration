@@ -12,8 +12,7 @@
     "SaveTableSQL": true,
     "StripPublishOption": true,
     "AggressiveSanitize": true,
-    "TablesToExportData": {
-    },
+    "TablesToExportData": {},
     "RunBeforeExport": "",
     "RunAfterExport": "",
     "RunAfterBuild": "",
