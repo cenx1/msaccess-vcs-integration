@@ -240,7 +240,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Sub IDbComponent_ClearOrphanedSourceFiles()
-    ClearOrphanedSourceFolders Me
+    ClearOrphanedSourceFiles Me, "json", "jpg", "jpeg", "jpe", "gif", "png"
 End Sub
 
 
