@@ -190,7 +190,7 @@ Private Function IDbComponent_GetAllFromDB() As Collection
 
     Dim cImg As IDbComponent
     Dim rst As DAO.Recordset
-    Dim strSQL As String
+    Dim strSql As String
 
     ' Build collection if not already cached
     If m_AllItems Is Nothing Then
@@ -200,8 +200,8 @@ Private Function IDbComponent_GetAllFromDB() As Collection
         If TableExists("MSysResources") Then
             
             Set m_Dbs = CurrentDb
-            strSQL = "SELECT * FROM MSysResources WHERE Type='img'"
-            Set rst = m_Dbs.OpenRecordset(strSQL, dbOpenSnapshot, dbOpenForwardOnly)
+            strSql = "SELECT * FROM MSysResources WHERE Type='img'"
+            Set rst = m_Dbs.OpenRecordset(strSql, dbOpenSnapshot, dbOpenForwardOnly)
             With rst
                 Do While Not .EOF
                     Set cImg = New clsDbSharedImage
@@ -240,7 +240,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Sub IDbComponent_ClearOrphanedSourceFiles()
-    ClearOrphanedSourceFiles Me, "json", "jpg", "jpeg", "jpe", "gif", "png"
+    ClearOrphanedSourceFolders Me
 End Sub
 
 

@@ -30,14 +30,14 @@ Implements IDbComponent
 '---------------------------------------------------------------------------------------
 '
 Private Sub IDbComponent_Export()
-    
+
     Dim prp As AccessObjectProperty
     Dim dCollection As Dictionary
     Dim strPath As String
     Dim varValue As Variant
-    
+
     Set dCollection = New Dictionary
-    
+
     ' Loop through all properties
     For Each prp In CurrentProject.Properties
         Select Case prp.Name
@@ -59,10 +59,10 @@ Private Sub IDbComponent_Export()
                 dCollection.Add prp.Name, prp.Value
         End Select
     Next prp
-    
+
     ' Write to file. The order of properties may change, so sort them to keep the order consistent.
     WriteJsonFile Me, SortDictionaryByKeys(dCollection), IDbComponent_SourceFile, "Project Properties (Access)"
-    
+
 End Sub
 
 

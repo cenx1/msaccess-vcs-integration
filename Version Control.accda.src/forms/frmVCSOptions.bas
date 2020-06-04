@@ -439,15 +439,15 @@ Begin Form
                         Begin Page
                             OverlapFlags =87
                             Left =615
-                            Top =1980
+                            Top =1965
                             Width =8850
-                            Height =4320
+                            Height =4335
                             BorderColor =10921638
                             Name ="pgeGeneral"
                             Caption ="General"
                             GridlineColor =10921638
                             LayoutCachedLeft =615
-                            LayoutCachedTop =1980
+                            LayoutCachedTop =1965
                             LayoutCachedWidth =9465
                             LayoutCachedHeight =6300
                             WebImagePaddingLeft =2
@@ -954,15 +954,15 @@ Begin Form
                         Begin Page
                             OverlapFlags =247
                             Left =615
-                            Top =1980
+                            Top =1965
                             Width =8850
-                            Height =4320
+                            Height =4335
                             BorderColor =10921638
                             Name ="pgeTable"
                             Caption ="Table Data"
                             GridlineColor =10921638
                             LayoutCachedLeft =615
-                            LayoutCachedTop =1980
+                            LayoutCachedTop =1965
                             LayoutCachedWidth =9465
                             LayoutCachedHeight =6300
                             WebImagePaddingLeft =2
@@ -1314,15 +1314,15 @@ Begin Form
                         Begin Page
                             OverlapFlags =247
                             Left =615
-                            Top =1980
+                            Top =1965
                             Width =8850
-                            Height =4320
+                            Height =4335
                             BorderColor =10921638
                             Name ="pgeBuild"
                             Caption ="Build"
                             GridlineColor =10921638
                             LayoutCachedLeft =615
-                            LayoutCachedTop =1980
+                            LayoutCachedTop =1965
                             LayoutCachedWidth =9465
                             LayoutCachedHeight =6300
                             WebImagePaddingLeft =2
@@ -1396,15 +1396,15 @@ Begin Form
                         Begin Page
                             OverlapFlags =247
                             Left =615
-                            Top =1980
+                            Top =1965
                             Width =8850
-                            Height =4320
+                            Height =4335
                             BorderColor =10921638
                             Name ="pgeEncrypt"
                             Caption ="Encryption"
                             GridlineColor =10921638
                             LayoutCachedLeft =615
-                            LayoutCachedTop =1980
+                            LayoutCachedTop =1965
                             LayoutCachedWidth =9465
                             LayoutCachedHeight =6300
                             WebImagePaddingLeft =2
@@ -1670,15 +1670,15 @@ Begin Form
                         Begin Page
                             OverlapFlags =247
                             Left =615
-                            Top =1980
+                            Top =1965
                             Width =8850
-                            Height =4320
+                            Height =4335
                             BorderColor =10921638
                             Name ="pgeSettings"
                             Caption ="Settings"
                             GridlineColor =10921638
                             LayoutCachedLeft =615
-                            LayoutCachedTop =1980
+                            LayoutCachedTop =1965
                             LayoutCachedWidth =9465
                             LayoutCachedHeight =6300
                             WebImagePaddingLeft =2
