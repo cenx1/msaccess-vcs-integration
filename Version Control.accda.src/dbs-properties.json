@@ -185,6 +185,10 @@
       "Value": true,
       "Type": 1
     },
+    "Use BigInt for linking and importing data": {
+      "Value": 0,
+      "Type": 4
+    },
     "Use Microsoft Access 2007 compatible cache": {
       "Value": 0,
       "Type": 4
