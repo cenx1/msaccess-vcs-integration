@@ -223,7 +223,7 @@ Public Sub VerifyResourcesTable()
         ' Close without saving
         DoCmd.Close acForm, strName, acSaveNo
         ' Remove any potential default theme
-        DoCmd.RunSQL "DELETE * FROM MSysResources WHERE [Type]='thmx'"
+        CurrentDb.Execute "DELETE * FROM MSysResources WHERE [Type]='thmx'"
     End If
     
 End Sub
