@@ -1345,7 +1345,12 @@ Public Function GetFilePathsInFolder(strDirPath As String, Optional Attributes A
     
     ' Build base folder name
     If Attributes = vbDirectory Then
-        strBaseFolder = FSO.GetFolder(strDirPath) & "\"
+        If FSO.FolderExists(strDirPath) Then
+            strBaseFolder = FSO.GetFolder(strDirPath) & "\"
+        Else
+            Set GetFilePathsInFolder = New Collection
+            Exit Function
+        End If
     Else
         strBaseFolder = FSO.GetParentFolderName(strDirPath) & "\"
     End If

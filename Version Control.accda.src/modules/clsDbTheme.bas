@@ -105,8 +105,8 @@ Private Sub IDbComponent_Import(strFile As String)
     Dim strName As String
     Dim strSql As String
     
-    
     ' Build zip file from theme folder
+    strZip = strFile & ".zip"
     If FSO.FileExists(strZip) Then FSO.DeleteFile strZip
     DoEvents
     CreateZipFile strZip
