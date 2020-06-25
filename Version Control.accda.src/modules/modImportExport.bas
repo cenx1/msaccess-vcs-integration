@@ -70,6 +70,9 @@ Public Sub ExportSource()
     ' Loop through all categories
     For Each cCategory In GetAllContainers
         
+        ' Let Access get some air. The export fails from time to time with Access just quiting without warning
+        DoEvents
+        
         ' Clear any source files for nonexistant objects
         cCategory.ClearOrphanedSourceFiles
             

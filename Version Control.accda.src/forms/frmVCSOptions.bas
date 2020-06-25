@@ -322,10 +322,10 @@ Begin Form
                     PressedShade =100.0
                     HoverForeColor =4210752
                     PressedForeColor =4210752
-                    WebImagePaddingLeft =9
-                    WebImagePaddingTop =9
-                    WebImagePaddingRight =9
-                    WebImagePaddingBottom =9
+                    WebImagePaddingLeft =16
+                    WebImagePaddingTop =16
+                    WebImagePaddingRight =17
+                    WebImagePaddingBottom =17
                     Overlaps =1
                 End
                 Begin CommandButton
@@ -400,10 +400,10 @@ Begin Form
                     PressedShade =100.0
                     HoverForeColor =4210752
                     PressedForeColor =4210752
-                    WebImagePaddingLeft =9
-                    WebImagePaddingTop =9
-                    WebImagePaddingRight =9
-                    WebImagePaddingBottom =9
+                    WebImagePaddingLeft =16
+                    WebImagePaddingTop =16
+                    WebImagePaddingRight =17
+                    WebImagePaddingBottom =17
                 End
                 Begin Tab
                     OverlapFlags =85
@@ -450,10 +450,10 @@ Begin Form
                             LayoutCachedTop =1965
                             LayoutCachedWidth =9465
                             LayoutCachedHeight =6300
-                            WebImagePaddingLeft =2
-                            WebImagePaddingTop =2
-                            WebImagePaddingRight =2
-                            WebImagePaddingBottom =2
+                            WebImagePaddingLeft =4
+                            WebImagePaddingTop =4
+                            WebImagePaddingRight =4
+                            WebImagePaddingBottom =4
                             Begin
                                 Begin TextBox
                                     OverlapFlags =215
@@ -926,10 +926,10 @@ Begin Form
                                     PressedShade =100.0
                                     HoverForeColor =4210752
                                     PressedForeColor =4210752
-                                    WebImagePaddingLeft =2
-                                    WebImagePaddingTop =2
-                                    WebImagePaddingRight =2
-                                    WebImagePaddingBottom =2
+                                    WebImagePaddingLeft =4
+                                    WebImagePaddingTop =4
+                                    WebImagePaddingRight =4
+                                    WebImagePaddingBottom =4
                                     Overlaps =1
                                 End
                                 Begin Label
@@ -965,10 +965,10 @@ Begin Form
                             LayoutCachedTop =1965
                             LayoutCachedWidth =9465
                             LayoutCachedHeight =6300
-                            WebImagePaddingLeft =2
-                            WebImagePaddingTop =2
-                            WebImagePaddingRight =2
-                            WebImagePaddingBottom =2
+                            WebImagePaddingLeft =4
+                            WebImagePaddingTop =4
+                            WebImagePaddingRight =4
+                            WebImagePaddingBottom =4
                             Begin
                                 Begin ListBox
                                     ColumnHeads = NotDefault
@@ -1242,10 +1242,10 @@ Begin Form
                                     PressedShade =100.0
                                     HoverForeColor =4210752
                                     PressedForeColor =4210752
-                                    WebImagePaddingLeft =9
-                                    WebImagePaddingTop =9
-                                    WebImagePaddingRight =9
-                                    WebImagePaddingBottom =9
+                                    WebImagePaddingLeft =16
+                                    WebImagePaddingTop =16
+                                    WebImagePaddingRight =17
+                                    WebImagePaddingBottom =17
                                 End
                                 Begin CheckBox
                                     OverlapFlags =247
@@ -1325,10 +1325,10 @@ Begin Form
                             LayoutCachedTop =1965
                             LayoutCachedWidth =9465
                             LayoutCachedHeight =6300
-                            WebImagePaddingLeft =2
-                            WebImagePaddingTop =2
-                            WebImagePaddingRight =2
-                            WebImagePaddingBottom =2
+                            WebImagePaddingLeft =4
+                            WebImagePaddingTop =4
+                            WebImagePaddingRight =4
+                            WebImagePaddingBottom =4
                             Begin
                                 Begin TextBox
                                     OverlapFlags =247
@@ -1407,10 +1407,10 @@ Begin Form
                             LayoutCachedTop =1965
                             LayoutCachedWidth =9465
                             LayoutCachedHeight =6300
-                            WebImagePaddingLeft =2
-                            WebImagePaddingTop =2
-                            WebImagePaddingRight =2
-                            WebImagePaddingBottom =2
+                            WebImagePaddingLeft =4
+                            WebImagePaddingTop =4
+                            WebImagePaddingRight =4
+                            WebImagePaddingBottom =4
                             Begin
                                 Begin Label
                                     OverlapFlags =247
@@ -1471,10 +1471,10 @@ Begin Form
                                     PressedShade =100.0
                                     HoverForeColor =4210752
                                     PressedForeColor =4210752
-                                    WebImagePaddingLeft =9
-                                    WebImagePaddingTop =9
-                                    WebImagePaddingRight =9
-                                    WebImagePaddingBottom =9
+                                    WebImagePaddingLeft =16
+                                    WebImagePaddingTop =16
+                                    WebImagePaddingRight =17
+                                    WebImagePaddingBottom =17
                                 End
                                 Begin Label
                                     OverlapFlags =247
@@ -1569,10 +1569,10 @@ Begin Form
                                     PressedShade =100.0
                                     HoverForeColor =4210752
                                     PressedForeColor =4210752
-                                    WebImagePaddingLeft =2
-                                    WebImagePaddingTop =2
-                                    WebImagePaddingRight =2
-                                    WebImagePaddingBottom =2
+                                    WebImagePaddingLeft =4
+                                    WebImagePaddingTop =4
+                                    WebImagePaddingRight =4
+                                    WebImagePaddingBottom =4
                                 End
                                 Begin CheckBox
                                     OverlapFlags =247
@@ -1681,10 +1681,10 @@ Begin Form
                             LayoutCachedTop =1965
                             LayoutCachedWidth =9465
                             LayoutCachedHeight =6300
-                            WebImagePaddingLeft =2
-                            WebImagePaddingTop =2
-                            WebImagePaddingRight =2
-                            WebImagePaddingBottom =2
+                            WebImagePaddingLeft =4
+                            WebImagePaddingTop =4
+                            WebImagePaddingRight =4
+                            WebImagePaddingBottom =4
                             Begin
                                 Begin CommandButton
                                     OverlapFlags =255
@@ -1757,10 +1757,10 @@ Begin Form
                                     PressedShade =100.0
                                     HoverForeColor =4210752
                                     PressedForeColor =4210752
-                                    WebImagePaddingLeft =9
-                                    WebImagePaddingTop =9
-                                    WebImagePaddingRight =9
-                                    WebImagePaddingBottom =9
+                                    WebImagePaddingLeft =16
+                                    WebImagePaddingTop =16
+                                    WebImagePaddingRight =17
+                                    WebImagePaddingBottom =17
                                     Begin
                                         Begin Label
                                             OverlapFlags =255
@@ -1854,10 +1854,10 @@ Begin Form
                                     PressedShade =100.0
                                     HoverForeColor =4210752
                                     PressedForeColor =4210752
-                                    WebImagePaddingLeft =9
-                                    WebImagePaddingTop =9
-                                    WebImagePaddingRight =9
-                                    WebImagePaddingBottom =9
+                                    WebImagePaddingLeft =16
+                                    WebImagePaddingTop =16
+                                    WebImagePaddingRight =17
+                                    WebImagePaddingBottom =17
                                     Begin
                                         Begin Label
                                             OverlapFlags =255
@@ -1951,10 +1951,10 @@ Begin Form
                                     PressedShade =100.0
                                     HoverForeColor =4210752
                                     PressedForeColor =4210752
-                                    WebImagePaddingLeft =9
-                                    WebImagePaddingTop =9
-                                    WebImagePaddingRight =9
-                                    WebImagePaddingBottom =9
+                                    WebImagePaddingLeft =16
+                                    WebImagePaddingTop =16
+                                    WebImagePaddingRight =17
+                                    WebImagePaddingBottom =17
                                     Begin
                                         Begin Label
                                             OverlapFlags =255
@@ -2126,10 +2126,10 @@ Begin Form
                                     PressedShade =100.0
                                     HoverForeColor =4210752
                                     PressedForeColor =4210752
-                                    WebImagePaddingLeft =9
-                                    WebImagePaddingTop =9
-                                    WebImagePaddingRight =9
-                                    WebImagePaddingBottom =9
+                                    WebImagePaddingLeft =16
+                                    WebImagePaddingTop =16
+                                    WebImagePaddingRight =17
+                                    WebImagePaddingBottom =17
                                     Begin
                                         Begin Label
                                             OverlapFlags =247
@@ -2228,10 +2228,10 @@ Begin Form
                     PressedShade =100.0
                     HoverForeColor =4210752
                     PressedForeColor =4210752
-                    WebImagePaddingLeft =2
-                    WebImagePaddingTop =2
-                    WebImagePaddingRight =2
-                    WebImagePaddingBottom =2
+                    WebImagePaddingLeft =4
+                    WebImagePaddingTop =4
+                    WebImagePaddingRight =4
+                    WebImagePaddingBottom =4
                     Overlaps =1
                 End
                 Begin Label
