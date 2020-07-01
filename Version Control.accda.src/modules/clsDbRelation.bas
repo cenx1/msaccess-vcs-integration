@@ -141,7 +141,8 @@ Private Function IDbComponent_GetAllFromDB() As Collection
         For Each rel In m_Dbs.Relations
             ' Navigation pane groups are handled separately
             If Not (rel.Name = "MSysNavPaneGroupsMSysNavPaneGroupToObjects" _
-                Or rel.Name = "MSysNavPaneGroupCategoriesMSysNavPaneGroups") Then
+                Or rel.Name = "MSysNavPaneGroupCategoriesMSysNavPaneGroups" _
+                Or IsInherited(rel)) Then
                 Set cRelation = New clsDbRelation
                 Set cRelation.DbObject = rel
                 m_AllItems.Add cRelation, rel.Name
@@ -156,69 +157,16 @@ End Function
 
 
 '---------------------------------------------------------------------------------------
-' Procedure : ImportRelation
-' Author    : Adam Kauffman
-' Date      : 02/18/2020
-' Purpose   : Import a table relationship
+' Procedure : IsInherited
+' Author    : Adam Waller
+' Date      : 6/30/2020
+' Purpose   : Returns true if the relationship was inherited from tables in a linked
+'           : database. (We don't need to export or import these.)
 '---------------------------------------------------------------------------------------
 '
-Private Sub ImportRelation(ByRef filePath As String, Optional ByRef appInstance As Application)
-    If appInstance Is Nothing Then Set appInstance = Application.Application
-    
-    Dim thisDb As Database
-    Set thisDb = appInstance.CurrentDb
-    
-    Dim fileLines() As String
-    With FSO.OpenTextFile(filePath, IOMode:=ForReading, Create:=False, Format:=TristateFalse)
-        fileLines = Split(.ReadAll, vbCrLf)
-        .Close
-    End With
-    
-    Dim newRelation As Relation
-    Set newRelation = thisDb.CreateRelation(fileLines(1), fileLines(2), fileLines(3), fileLines(0))
-    
-    Dim newField As Field
-    Dim thisLine As Long
-    For thisLine = 4 To UBound(fileLines)
-        If "Field = Begin" = fileLines(thisLine) Then
-            thisLine = thisLine + 1
-            Set newField = newRelation.CreateField(fileLines(thisLine))  ' Name set here
-            thisLine = thisLine + 1
-            newField.ForeignName = fileLines(thisLine)
-            thisLine = thisLine + 1
-            If "End" <> fileLines(thisLine) Then
-                Set newField = Nothing
-                Err.Raise 40000, "ImportRelation", "Missing 'End' for a 'Begin' in " & filePath
-            End If
-            
-            newRelation.Fields.Append newField
-        End If
-    Next thisLine
-        
-    ' Remove conflicting Index entries because adding the relation creates new indexes causing "Error 3284 Index already exists"
-    On Error Resume Next
-    With thisDb
-        .Relations.Delete newRelation.Name  ' Avoid 3012 Relationship already exists
-        .TableDefs(newRelation.Table).Indexes.Delete newRelation.Name
-        .TableDefs(newRelation.ForeignTable).Indexes.Delete newRelation.Name
-    End With
-    On Error GoTo ErrorHandler
-    
-    With thisDb.Relations
-        .Append newRelation
-    End With
-    
-ErrorHandler:
-    Select Case Err.Number
-    Case 0
-    Case 3012
-        Debug.Print "Relationship already exists: """ & newRelation.Name & """ "
-    Case 3284
-        Debug.Print "Index already exists for: """ & newRelation.Name & """ "
-    Case Else
-        Debug.Print "Failed to add: """ & newRelation.Name & """ " & Err.Number & " " & Err.Description
-    End Select
-End Sub
+Private Function IsInherited(objRelation As Relation) As Boolean
+    IsInherited = ((objRelation.Attributes And dbRelationInherited) = dbRelationInherited)
+End Function
 
 
 '---------------------------------------------------------------------------------------
