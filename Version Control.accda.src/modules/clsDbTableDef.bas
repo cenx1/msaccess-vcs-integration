@@ -340,30 +340,85 @@ Private Sub ImportLinkedTable(strFile As String)
         With tdf
             .Connect = Decrypt(dItem("Connect"))
             .SourceTableName = dItem("SourceTableName")
+            .Attributes = SafeAttributes(dItem("Attributes"))
         End With
         dbs.TableDefs.Append tdf
         dbs.TableDefs.Refresh
-        
-        ' Might have to set this after adding the table?
-        If tdf.Attributes <> dItem("Attributes") Then tdf.Attributes = dItem("Attributes")
         
         ' Set index on linked table.
         If InStr(1, tdf.Connect, ";DATABASE=", vbTextCompare) = 1 Then
             ' Can't create a key on a linked Access database table.
             ' Presumably this would use the Access index instead of needing the pseudo index
         Else
-            ' Check for a primary key index
-            If dItem.Exists("PrimaryKey") Then
+            ' Check for a primary key index (Linked SQL tables may bring over the index, but linked views won't.)
+            If dItem.Exists("PrimaryKey") And Not HasUniqueIndex(tdf) Then
                 ' Create a pseudo index on the linked table
-                strSql = "CREATE UNIQUE INDEX PrimaryKey ON [" & tdf.Name & "] (" & dItem("PrimaryKey") & ") WITH PRIMARY"
+                strSql = "CREATE UNIQUE INDEX __uniqueindex ON [" & tdf.Name & "] (" & dItem("PrimaryKey") & ") WITH PRIMARY"
                 dbs.Execute strSql, dbFailOnError
                 dbs.TableDefs.Refresh
             End If
         End If
-        
     End If
      
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : SafeAttributes
+' Author    : Adam Waller
+' Date      : 6/29/2020
+' Purpose   : Rebuild new attributes flag using attributes that we can actually set.
+'---------------------------------------------------------------------------------------
+'
+Private Function SafeAttributes(lngAttributes As Long) As Long
+
+    Dim colAtts As Collection
+    Dim varAtt As Variant
+    Dim lngNew As Long
+    
+    Set colAtts = New Collection
+    With colAtts
+        '.Add dbAttachedODBC
+        '.Add dbAttachedTable
+        .Add dbAttachExclusive
+        .Add dbAttachSavePWD
+        .Add dbHiddenObject
+        .Add dbSystemObject
+    End With
+    
+    For Each varAtt In colAtts
+        ' Use boolean logic to check for bit flag
+        If CBool((lngAttributes And varAtt) = varAtt) Then
+            ' Add to our rebuilt flag value.
+            lngNew = lngNew + varAtt
+        End If
+    Next varAtt
+    
+    ' Return attributes value after rebuilding from scratch.
+    SafeAttributes = lngNew
+    
+End Function
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : HasUniqueIndex
+' Author    : Adam Waller
+' Date      : 6/29/2020
+' Purpose   : Returns true if a unique index exists on this table.
+'---------------------------------------------------------------------------------------
+'
+Private Function HasUniqueIndex(tdf As TableDef) As Boolean
+
+    Dim idx As DAO.Index
+    
+    For Each idx In tdf.Indexes
+        If idx.Unique Then
+            HasUniqueIndex = True
+            Exit For
+        End If
+    Next idx
+    
+End Function
 
 
 '---------------------------------------------------------------------------------------
