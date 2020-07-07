@@ -2,7 +2,7 @@
   "Info": {
     "Class": "clsDbVbeReference",
     "Description": "VBE References",
-    "VCS Version": "3.2.0"
+    "VCS Version": "3.2.5"
   },
   "Items": {
     "ADODB": {
