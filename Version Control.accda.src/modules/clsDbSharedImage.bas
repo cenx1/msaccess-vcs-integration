@@ -64,6 +64,7 @@ Private Sub IDbComponent_Export()
         .Type = adTypeBinary
         .Open
         .Write StripOLEHeader(m_FileData)     ' Binary data
+        VerifyPath strFile
         .SaveToFile strFile, adSaveCreateOverWrite
         .Close
     End With
@@ -228,7 +229,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Function IDbComponent_GetFileList() As Collection
-    Set IDbComponent_GetFileList = GetFilePathsInFolder(IDbComponent_BaseFolder & "*.json")
+    Set IDbComponent_GetFileList = GetFilePathsInFolder(IDbComponent_BaseFolder, "*.json")
 End Function
 
 
@@ -269,7 +270,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Function IDbComponent_SourceModified() As Date
-    If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_SourceModified = FileDateTime(IDbComponent_SourceFile)
+    If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_SourceModified = GetLastModifiedDate(IDbComponent_SourceFile)
 End Function
 
 

@@ -53,7 +53,7 @@ Private Sub IDbComponent_Export()
                     If Len(varValue) > 0 Then
                         ' Try to use a relative path
                         strPath = GetRelativePath(CStr(varValue))
-                        If Len(strPath) > 0 Then
+                        If Left(strPath, 4) = "rel:" Then
                             varValue = strPath
                         Else
                             ' The full path may contain sensitive info. Secure the path but not the file name.
@@ -203,7 +203,7 @@ End Function
 Private Sub IDbComponent_ClearOrphanedSourceFiles()
     Dim strFile As String
     strFile = IDbComponent_BaseFolder & "properties.txt"
-    If FSO.FileExists(strFile) Then Kill strFile    ' Remove legacy file
+    If FSO.FileExists(strFile) Then FSO.DeleteFile strFile, True     ' Remove legacy file
 End Sub
 
 
@@ -233,7 +233,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Function IDbComponent_SourceModified() As Date
-    If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_SourceModified = FileDateTime(IDbComponent_SourceFile)
+    If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_SourceModified = GetLastModifiedDate(IDbComponent_SourceFile)
 End Function
 
 

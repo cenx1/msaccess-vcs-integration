@@ -38,13 +38,14 @@ Implements IDbComponent
 ' Procedure : Export
 ' Author    : Adam Waller
 ' Date      : 4/23/2020
-' Purpose   : Export the shared image as a json file with file details, and a copy
-'           : of the binary image file saved as an image.
+' Purpose   : Export the theme file as either a zipped thmx file, or an extracted
+'           : folder with the theme source files. (Depending on the specified options.)
 '---------------------------------------------------------------------------------------
 '
 Private Sub IDbComponent_Export()
 
     Dim strFile As String
+    Dim strZip As String
     Dim strFolder As String
     Dim stm As ADODB.Stream
     Dim bteHeader As Byte
@@ -53,21 +54,22 @@ Private Sub IDbComponent_Export()
     Dim rstAtc As Recordset2
     Dim strSql As String
     
-    ' Save theme file
-    strFile = IDbComponent_SourceFile & ".zip"
+    ' Query theme file details
     strSql = "SELECT [Data] FROM MSysResources WHERE [Name]='" & m_Name & "' AND Extension='" & m_Extension & "'"
     Set m_Dbs = CurrentDb
     Set rst = m_Dbs.OpenRecordset(strSql, dbOpenSnapshot, dbOpenForwardOnly)
     
     ' If we get multiple records back we don't know which to use
     If rst.RecordCount > 1 Then Err.Raise 42, , "Multiple records in MSysResources table were found that matched name '" & m_Name & "' and extension '" & m_Extension & "' - Compact and repair database and try again."
+
+    ' Get full name of theme file. (*.thmx)
+    strFile = IDbComponent_SourceFile
     
-    ' make sure parent folder exists before we try to save it
-    VerifyPath FSO.GetParentFolderName(strFile)
-    
+    ' Save as file
     If Not rst.EOF Then
         Set rstAtc = rst!Data.Value
-        If FSO.FileExists(strFile) Then FSO.DeleteFile strFile
+        If FSO.FileExists(strFile) Then FSO.DeleteFile strFile, True
+        VerifyPath strFile
         rstAtc!FileData.SaveToFile strFile
         rstAtc.Close
         Set rstAtc = Nothing
@@ -75,14 +77,20 @@ Private Sub IDbComponent_Export()
     rst.Close
     Set rst = Nothing
     
-    ' Extract to folder and delete zip file.
-    strFolder = IDbComponent_SourceFile
-    If FSO.FolderExists(strFolder) Then FSO.DeleteFolder strFolder, True
-    DoEvents ' Make sure the folder is deleted before we recreate it.
-    ExtractFromZip strFile, IDbComponent_SourceFile, False
-    ' Rather than holding up the export while we extract the file,
-    ' use a cleanup sub to do this after the export.
-    'FSO.DeleteFile IDbComponent_SourceFile & ".zip"
+    ' See if we need to extract the theme source files.
+    ' (Only really needed when you are tracking themes customizations.)
+    If Options.ExtractThemeFiles Then
+        ' Extract to folder and delete zip file.
+        strFolder = FSO.GetParentFolderName(strFile) & "\" & FSO.GetBaseName(strFile)
+        If FSO.FolderExists(strFolder) Then FSO.DeleteFolder strFolder, True
+        DoEvents ' Make sure the folder is deleted before we recreate it.
+        ' Rename to zip file before extracting
+        strZip = strFolder & ".zip"
+        Name strFile As strZip
+        ExtractFromZip strZip, strFolder, False
+        ' Rather than holding up the export while we extract the file,
+        ' use a cleanup sub to do this after the export.
+    End If
 
 End Sub
 
@@ -101,29 +109,46 @@ Private Sub IDbComponent_Import(strFile As String)
     Dim fldFile As DAO.Field2
     Dim strZip As String
     Dim strThemeFile As String
-    Dim strName As String
+    Dim strThemeName As String
     Dim strSql As String
+    Dim blnIsFolder As Boolean
     
-    ' Build zip file from theme folder
-    strZip = strFile & ".zip"
-    If FSO.FileExists(strZip) Then FSO.DeleteFile strZip
-    DoEvents
-    CreateZipFile strZip
-    CopyFolderToZip strFile, strZip
-    DoEvents
+    ' Are we dealing with a folder, or a file?
+    blnIsFolder = (Right$(strFile, 5) <> ".thmx")
 
-    ' Get theme name
-    strName = FSO.GetBaseName(strZip)
-    
+    If blnIsFolder Then
+        ' We need to compress this folder back into a zipped theme file.
+        ' Build zip file name
+        strZip = strFile & ".zip"
+        ' Get theme name
+        strThemeName = GetObjectNameFromFileName(FSO.GetBaseName(strZip))
+        ' Remove any existing zip file
+        If FSO.FileExists(strZip) Then FSO.DeleteFile strZip, True
+        ' Copy source files into new zip file
+        CreateZipFile strZip
+        CopyFolderToZip strFile, strZip
+        DoEvents
+        strThemeFile = strFile & ".thmx"
+        If FSO.FileExists(strThemeFile) Then FSO.DeleteFile strThemeFile, True
+        Name strZip As strThemeFile
+    Else
+        ' Skip if file no longer exists. (Such as if we already
+        ' imported this theme from a folder.)
+        If Not FSO.FileExists(strFile) Then Exit Sub
+        ' Theme file is ready to go
+        strThemeFile = strFile
+    End If
+
     ' Create/edit record in resources table.
+    strThemeName = GetObjectNameFromFileName(FSO.GetBaseName(strFile))
     VerifyResourcesTable
-    strSql = "SELECT * FROM MSysResources WHERE [Type] = 'thmx' AND [Name]=""" & strName & """"
+    strSql = "SELECT * FROM MSysResources WHERE [Type] = 'thmx' AND [Name]=""" & strThemeName & """"
     Set rstResources = CurrentDb.OpenRecordset(strSql, dbOpenDynaset)
     With rstResources
         If .EOF Then
             ' No existing record found. Add a record
             .AddNew
-            !Name = strName
+            !Name = strThemeName
             !Extension = "thmx"
             !Type = "thmx"
             Set rstAttachment = .Fields("Data").Value
@@ -136,8 +161,6 @@ Private Sub IDbComponent_Import(strFile As String)
         End If
         
         ' Upload theme file into OLE field
-        strThemeFile = strFile & ".thmx"
-        Name strZip As strThemeFile
         DoEvents
         With rstAttachment
             .AddNew
@@ -152,8 +175,8 @@ Private Sub IDbComponent_Import(strFile As String)
         .Close
     End With
     
-    ' Remove zip file
-    Kill strThemeFile
+    ' Remove compressed theme file if we are using a folder.
+    If blnIsFolder Then FSO.DeleteFile strThemeFile, True
     
     ' Clear object (Important with DAO/ADO)
     Set rstAttachment = Nothing
@@ -174,11 +197,17 @@ Private Function IDbComponent_GetAllFromDB() As Collection
     Dim cTheme As IDbComponent
     Dim rst As DAO.Recordset
     Dim strSql As String
+    Dim strKey As String
+    Dim dItems As Dictionary
     
     ' Build collection if not already cached
     If m_AllItems Is Nothing Then
         Set m_AllItems = New Collection
             
+        ' Use dictionary to make sure we don't add duplicate records if we have
+        ' both a folder and a theme file for the same theme.
+        Set dItems = New Dictionary
+        
         ' This system table should exist, but just in case...
         If TableExists("MSysResources") Then
 
@@ -189,7 +218,11 @@ Private Function IDbComponent_GetAllFromDB() As Collection
                 Do While Not .EOF
                     Set cTheme = New clsDbTheme
                     Set cTheme.DbObject = rst    ' Reference to OLE object recordset2
-                    m_AllItems.Add cTheme, Nz(!Name)
+                    strKey = Nz(!Name)
+                    If Not dItems.Exists(strKey) Then
+                        m_AllItems.Add cTheme, strKey
+                        dItems.Add strKey, strKey
+                    End If
                     .MoveNext
                 Loop
                 .Close
@@ -235,8 +268,9 @@ End Sub
 '---------------------------------------------------------------------------------------
 '
 Private Function IDbComponent_GetFileList() As Collection
-    ' Get list of folders
-    Set IDbComponent_GetFileList = GetFilePathsInFolder(IDbComponent_BaseFolder, vbDirectory)
+    ' Get list of folders (extracted files) as well as zip files.
+    Set IDbComponent_GetFileList = GetSubfolderPaths(IDbComponent_BaseFolder)
+    MergeCollection IDbComponent_GetFileList, GetFilePathsInFolder(IDbComponent_BaseFolder, "*.thmx")
 End Function
 
 
@@ -249,6 +283,7 @@ End Function
 '
 Private Sub IDbComponent_ClearOrphanedSourceFiles()
     ClearOrphanedSourceFolders Me
+    ClearOrphanedSourceFiles Me, "thmx"
 End Sub
 
 
@@ -278,7 +313,7 @@ End Function
 '
 Private Function IDbComponent_SourceModified() As Date
     '// TODO: Recursively identify the most recent file modified date.
-    'If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_SourceModified = FileDateTime(IDbComponent_SourceFile)
+    'If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_SourceModified = GetLastModifiedDate(IDbComponent_SourceFile)
 End Function
 
 
@@ -322,12 +357,11 @@ End Property
 ' Author    : Adam Waller
 ' Date      : 4/23/2020
 ' Purpose   : Return the full path of the source file for the current object.
-'           : In this case, we are building the name to include the info needed to
-'           : recreate the record in the MSysResource table.
+'           : In this case, we are returning the theme file name.
 '---------------------------------------------------------------------------------------
 '
 Private Property Get IDbComponent_SourceFile() As String
-    IDbComponent_SourceFile = IDbComponent_BaseFolder & GetSafeFileName(m_Name)
+    IDbComponent_SourceFile = IDbComponent_BaseFolder & GetSafeFileName(m_Name) & ".thmx"
 End Property
 
 

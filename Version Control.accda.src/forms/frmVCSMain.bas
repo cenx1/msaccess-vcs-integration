@@ -17,10 +17,10 @@ Begin Form
     Width =9360
     DatasheetFontHeight =11
     ItemSuffix =20
-    Left =22035
-    Top =3390
-    Right =-19951
-    Bottom =21855
+    Left =3225
+    Top =2430
+    Right =18945
+    Bottom =14175
     DatasheetGridlinesColor =15132391
     RecSrcDt = Begin
         0x79e78b777268e540
@@ -1840,7 +1840,7 @@ Private Sub Form_Load()
         "<strong><em>Export</em></strong> source to generate source files from the current database." & _
         "<br><br><strong><em>Import</em></strong> source files to rebuild this database from source."
     ' You can only export if you have a database open.
-    cmdExport.Enabled = Not (CurrentDb Is Nothing And CurrentProject.Connection Is Nothing)
+    cmdExport.Enabled = DatabaseOpen
 End Sub
 
 

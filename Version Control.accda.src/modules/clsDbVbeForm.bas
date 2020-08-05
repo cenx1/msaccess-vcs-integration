@@ -30,7 +30,7 @@ Implements IDbComponent
 '---------------------------------------------------------------------------------------
 '
 Private Sub IDbComponent_Export()
-    VerifyPath IDbComponent_BaseFolder
+    VerifyPath IDbComponent_SourceFile
     m_Form.Export IDbComponent_SourceFile
 End Sub
 
@@ -87,7 +87,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Function IDbComponent_GetFileList() As Collection
-    Set IDbComponent_GetFileList = GetFilePathsInFolder(IDbComponent_BaseFolder & "*.frm")
+    Set IDbComponent_GetFileList = GetFilePathsInFolder(IDbComponent_BaseFolder, "*.frm")
 End Function
 
 
@@ -128,7 +128,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Function IDbComponent_SourceModified() As Date
-    If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_SourceModified = FileDateTime(IDbComponent_SourceFile)
+    If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_SourceModified = GetLastModifiedDate(IDbComponent_SourceFile)
 End Function
 
 

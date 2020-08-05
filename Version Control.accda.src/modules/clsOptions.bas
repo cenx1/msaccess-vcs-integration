@@ -11,6 +11,7 @@ Option Explicit
 ' Further reading: https://english.stackexchange.com/questions/59058/
 
 Private Const cstrOptionsFilename As String = "vcs-options.json"
+Private Const cstrSourcePathProperty As String = "VCS Source Path"
 
 ' Options
 Public ExportFolder As String
@@ -21,6 +22,7 @@ Public SaveQuerySQL As Boolean
 Public SaveTableSQL As Boolean
 Public StripPublishOption As Boolean
 Public AggressiveSanitize As Boolean
+Public ExtractThemeFiles As Boolean
 Public TablesToExportData As Dictionary
 Public RunBeforeExport As String
 Public RunAfterExport As String
@@ -68,7 +70,7 @@ Public Sub LoadDefaults()
         .SaveTableSQL = True
         .StripPublishOption = True
         .AggressiveSanitize = True
-        .Security = esEncrypt
+        .Security = esNone
         .KeyName = modEncrypt.DefaultKeyName
         Set .TablesToExportData = New Dictionary
         ' Save specific tables by default
@@ -136,6 +138,9 @@ End Sub
 '---------------------------------------------------------------------------------------
 '
 Public Sub SaveOptionsForProject()
+    ' Save source path option in current database.
+    SavedSourcePath = Me.ExportFolder
+    ' Save options to the export folder location
     Me.SaveOptionsToFile Me.GetExportFolder & cstrOptionsFilename
 End Sub
 
@@ -149,20 +154,15 @@ End Sub
 '
 Public Sub LoadOptionsFromFile(strFile As String)
 
+    Dim dFile As Dictionary
     Dim dOptions As Dictionary
     Dim varOption As Variant
     Dim strKey As String
-    Dim strOptionsContent As String
     
-    If FSO.FileExists(strFile) Then
-        ' Read file contents
-        With FSO.OpenTextFile(strFile)
-            strOptionsContent = .ReadAll
-            .Close
-        End With
-        If Left(strOptionsContent, 3) = "﻿" Then strOptionsContent = Mid(strOptionsContent, 4)
-        Set dOptions = modJsonConverter.ParseJson(strOptionsContent)("Options")
-        If Not dOptions Is Nothing Then
+    Set dFile = ReadJsonFile(strFile)
+    If Not dFile Is Nothing Then
+        If dFile.Exists("Options") Then
+            Set dOptions = dFile("Options")
             ' Attempt to set any matching options in this class.
             For Each varOption In m_colOptions
                 strKey = CStr(varOption)
@@ -193,7 +193,15 @@ End Sub
 '---------------------------------------------------------------------------------------
 '
 Public Sub LoadProjectOptions()
+
+    Dim strFolder As String
+    
+    ' Get saved path from database (if defined)
+    Me.ExportFolder = SavedSourcePath
+    
+    ' Attempt to load the project options file.
     LoadOptionsFromFile Me.GetExportFolder & cstrOptionsFilename
+    
 End Sub
 
 
@@ -229,13 +237,28 @@ End Sub
 '---------------------------------------------------------------------------------------
 '
 Public Function GetExportFolder() As String
+
+    Dim strFullPath As String
+    
     If Me.ExportFolder = vbNullString Then
         ' Build default path using project name
-        GetExportFolder = CurrentProject.FullName & ".src\"
+        strFullPath = CurrentProject.FullName & ".src\"
     Else
-        ' This should be an absolute path, not a relative one.
-        GetExportFolder = Me.ExportFolder
+        If Left$(Me.ExportFolder, 2) = "\\" Then
+            ' UNC path
+            strFullPath = Me.ExportFolder
+        ElseIf Left$(Me.ExportFolder, 1) = "\" Then
+            ' Relative path (from database file location)
+            strFullPath = CurrentProject.Path & Me.ExportFolder
+        Else
+            ' Other absolute path (i.e. c:\myfiles\)
+            strFullPath = Me.ExportFolder
+        End If
     End If
+
+    ' Return export path with a trailing slash
+    GetExportFolder = StripSlash(strFullPath) & "\"
+    
 End Function
 
 
@@ -267,7 +290,7 @@ Private Function SerializeOptions() As Dictionary
     #End If
     dInfo.Add "AddinVersion", AppVersion
     dInfo.Add "AccessVersion", Application.Version & strBit
-    If Me.Security = esEncrypt Then dInfo.Add "Hash", Encrypt(CodeProject.Name)
+    If Me.Security = esEncrypt Then dInfo.Add "Hash", GetHash
     
     ' Loop through options
     For Each varOption In m_colOptions
@@ -287,6 +310,20 @@ Private Function SerializeOptions() As Dictionary
     Set dWrapper("Options") = dOptions
     Set SerializeOptions = dWrapper
     
+End Function
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetHash
+' Author    : Adam Waller
+' Date      : 7/29/2020
+' Purpose   : Return a hash of the CodeProject.Name to verify encryption.
+'           : Note that the CodeProject.Name value is sometimes returned in all caps,
+'           : so we will force it to uppercase so the return value is consistent.
+'---------------------------------------------------------------------------------------
+'
+Private Function GetHash() As String
+    GetHash = Encrypt(UCase(CodeProject.Name))
 End Function
 
 
@@ -386,6 +423,7 @@ Private Sub Class_Initialize()
         .Add "SaveTableSQL"
         .Add "StripPublishOption"
         .Add "AggressiveSanitize"
+        .Add "ExtractThemeFiles"
         .Add "TablesToExportData"
         .Add "RunBeforeExport"
         .Add "RunAfterExport"
@@ -401,3 +439,70 @@ Private Sub Class_Initialize()
     JsonOptions.AllowUnicodeChars = True
     
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : SavedSourcePath
+' Author    : Adam Waller
+' Date      : 7/13/2020
+' Purpose   : Get any saved path for VCS source files. (In case we are using a
+'           : different location for the files.) This is stored as a property
+'           : under the currentproject. (Works for both ADP and MDB)
+'---------------------------------------------------------------------------------------
+'
+Private Property Get SavedSourcePath() As String
+    Dim prp As AccessObjectProperty
+    Set prp = GetSavedSourcePathProperty
+    If Not prp Is Nothing Then SavedSourcePath = prp.Value
+End Property
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : SavedSourcePath
+' Author    : Adam Waller
+' Date      : 7/14/2020
+' Purpose   : Save the source path as a property in the current database.
+'---------------------------------------------------------------------------------------
+'
+Private Property Let SavedSourcePath(strPath As String)
+    
+    Dim prp As AccessObjectProperty
+    Dim proj As CurrentProject
+    
+    Set proj = CurrentProject
+    Set prp = GetSavedSourcePathProperty
+    
+    If strPath = vbNullString Then
+        ' Remove the property when no longer used.
+        If Not prp Is Nothing Then proj.Properties.Remove prp.Name
+    Else
+        If prp Is Nothing Then
+            ' Create the property
+            proj.Properties.Add cstrSourcePathProperty, strPath
+        Else
+            ' Update the value.
+            prp.Value = strPath
+        End If
+    End If
+    
+End Property
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetSavedSourcePathProperty
+' Author    : Adam Waller
+' Date      : 7/14/2020
+' Purpose   : Helper function to get
+'---------------------------------------------------------------------------------------
+'
+Private Function GetSavedSourcePathProperty() As AccessObjectProperty
+    Dim prp As AccessObjectProperty
+    If DatabaseOpen Then
+        For Each prp In CurrentProject.Properties
+            If prp.Name = cstrSourcePathProperty Then
+                Set GetSavedSourcePathProperty = prp
+                Exit For
+            End If
+        Next prp
+    End If
+End Function

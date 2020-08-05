@@ -36,19 +36,18 @@ Private Sub IDbComponent_Export()
     Dim strFile As String
     Dim intFormat As eTableDataExportFormat
 
-    ' Make sure the path exists.
-    VerifyPath FSO.GetParentFolderName(IDbComponent_SourceFile)
-
     ' Save as selected format, and remove other formats if they exist.
     For intFormat = 1 To eTableDataExportFormat.[_Last]
         ' Build file name for this format
         strFile = IDbComponent_BaseFolder & GetSafeFileName(m_Table.Name) & "." & GetExtByFormat(intFormat)
-        If FSO.FileExists(strFile) Then Kill strFile
+        If FSO.FileExists(strFile) Then FSO.DeleteFile strFile, True
         If intFormat = Me.Format Then
             ' Export the table using this format.
             Select Case intFormat
                 Case etdTabDelimited:   ExportTableDataAsTDF m_Table.Name
-                Case etdXML:
+                Case etdXML
+                    ' Export data rows as XML
+                    VerifyPath strFile
                     Application.ExportXML acExportTable, m_Table.Name, strFile
                     SanitizeXML strFile, Options
             End Select
@@ -305,8 +304,8 @@ End Function
 '
 Private Function IDbComponent_GetFileList() As Collection
     Dim colFiles As Collection
-    Set colFiles = GetFilePathsInFolder(IDbComponent_BaseFolder & "*." & GetExtByFormat(etdTabDelimited))
-    MergeCollection colFiles, GetFilePathsInFolder(IDbComponent_BaseFolder & "*." & GetExtByFormat(etdXML))
+    Set colFiles = GetFilePathsInFolder(IDbComponent_BaseFolder, "*." & GetExtByFormat(etdTabDelimited))
+    MergeCollection colFiles, GetFilePathsInFolder(IDbComponent_BaseFolder, "*." & GetExtByFormat(etdXML))
     Set IDbComponent_GetFileList = colFiles
 End Function
 
@@ -364,7 +363,8 @@ End Sub
 '---------------------------------------------------------------------------------------
 '
 Private Function IDbComponent_DateModified() As Date
-    IDbComponent_DateModified = m_Table.DateModified
+    ' We cannot determine when *records* were modified in a table.
+    IDbComponent_DateModified = 0
 End Function
 
 
@@ -379,7 +379,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Function IDbComponent_SourceModified() As Date
-    If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_SourceModified = FileDateTime(IDbComponent_SourceFile)
+    If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_SourceModified = GetLastModifiedDate(IDbComponent_SourceFile)
 End Function
 
 

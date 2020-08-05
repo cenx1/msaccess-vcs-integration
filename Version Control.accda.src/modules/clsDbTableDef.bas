@@ -46,10 +46,10 @@ Private Sub IDbComponent_Export()
     If tbl.Connect = vbNullString Then
     
         ' Check for existing file
-        If FSO.FileExists(strFile) Then Kill strFile
-        VerifyPath FSO.GetParentFolderName(strFile)
-    
+        If FSO.FileExists(strFile) Then FSO.DeleteFile strFile, True
+
         ' Save structure in XML format
+        VerifyPath strFile
         Application.ExportXML acExportTable, m_Table.Name, , strFile ', , , , acExportAllTableAndFieldProperties ' Add support for this later.
     
     Else
@@ -71,7 +71,6 @@ Private Sub IDbComponent_Export()
         End With
         WriteJsonFile Me, dItem, strFile, "Linked Table"
     End If
-    
     
     ' Optionally save in SQL format
     If Options.SaveTableSQL Then
@@ -462,8 +461,8 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Function IDbComponent_GetFileList() As Collection
-    Set IDbComponent_GetFileList = GetFilePathsInFolder(IDbComponent_BaseFolder & "*.xml")
-    MergeCollection IDbComponent_GetFileList, GetFilePathsInFolder(IDbComponent_BaseFolder & "*.json")
+    Set IDbComponent_GetFileList = GetFilePathsInFolder(IDbComponent_BaseFolder, "*.xml")
+    MergeCollection IDbComponent_GetFileList, GetFilePathsInFolder(IDbComponent_BaseFolder, "*.json")
 End Function
 
 
@@ -505,7 +504,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Function IDbComponent_SourceModified() As Date
-    If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_SourceModified = FileDateTime(IDbComponent_SourceFile)
+    If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_SourceModified = GetLastModifiedDate(IDbComponent_SourceFile)
 End Function
 
 
