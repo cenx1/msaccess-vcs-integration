@@ -49,9 +49,8 @@ Public Sub ExportSource()
     ' Set this as text to save display in current user's locale rather than Zulu time.
     SetDBProperty "Last VCS Export", Now, dbText ' dbDate
 
+    ' Begin timer at start of export.
     sngStart = Timer
-    Set colVerifiedPaths = New Collection   ' Reset cache
-    VerifyPath Options.GetExportFolder
 
     ' Display heading
     With Options
@@ -128,6 +127,9 @@ Public Sub ExportSource()
     Log.Add "Done. (" & Round(Timer - sngStart, 2) & " seconds)"
     Log.SaveFile FSO.BuildPath(Options.GetExportFolder, "Export.log")
     
+    ' Check for VCS_ImportExport.bas (Used with other forks)
+    CheckForLegacyModules
+    
     ' Restore original fast save option, and save options with project
     Options.SaveOptionsForProject
     
@@ -160,15 +162,22 @@ Public Sub Build(strSourceFolder As String)
         Exit Sub
     End If
     
+    ' Make sure we can find the source files
+    If Not FolderHasVcsOptionsFile(strSourceFolder) Then
+        MsgBox2 "Source files not found", "Required source files were not found in the following folder:", strSourceFolder, vbExclamation
+        Exit Sub
+    End If
+    
     ' Now reset the options and logs
     Set Options = Nothing
     Options.LoadOptionsFromFile strSourceFolder & "vcs-options.json"
     Log.Clear
     sngStart = Timer
-    
-    ' Make sure we can find the source files
-    If Not FolderHasVcsOptionsFile(strSourceFolder) Then
-        MsgBox2 "Source files not found", "Required source files were not found in the following folder:", strSourceFolder, vbExclamation
+
+    ' If we are using encryption, make sure we are able to decrypt the values
+    If Options.Security = esEncrypt And Not VerifyHash(strSourceFolder & "vcs-options.json") Then
+        MsgBox2 "Encryption Key Mismatch", "The required encryption key is either missing or incorrect.", _
+            "Please update the encryption key before building this project from source.", vbExclamation
         Exit Sub
     End If
     
@@ -381,6 +390,36 @@ End Function
 '
 Public Sub RemoveThemeZipFiles()
     Dim strFolder As String
-    strFolder = Options.GetExportFolder & "themes\"
-    If FSO.FolderExists(strFolder) Then ClearFilesByExtension strFolder, "zip"
+    If Options.ExtractThemeFiles Then
+        strFolder = Options.GetExportFolder & "themes\"
+        If FSO.FolderExists(strFolder) Then ClearFilesByExtension strFolder, "zip"
+    End If
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : VerifyHash
+' Author    : Adam Waller
+' Date      : 7/29/2020
+' Purpose   : Verify that we can decrypt the hash value in the options file, if found.
+'           : Returns false if a hash is found but cannot be decrypted.
+'---------------------------------------------------------------------------------------
+'
+Private Function VerifyHash(strOptionsFile As String) As Boolean
+    
+    Dim dFile As Dictionary
+    Dim strHash As String
+    
+    Set dFile = ReadJsonFile(strOptionsFile)
+    strHash = dNZ(dFile, "Info\Hash")
+    
+    ' Check hash value
+    If strHash = vbNullString Then
+        ' Could not find hash.
+        VerifyHash = True
+    Else
+        ' Return true if we can successfully decrypt the hash.
+        VerifyHash = CanDecrypt(strHash)
+    End If
+    
+End Function

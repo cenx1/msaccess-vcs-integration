@@ -10,6 +10,7 @@ Public Enum eReleaseType
     Major_Vxx = 0
     Minor_xVx = 1
     Build_xxV = 2
+    Same_Version = 3
 End Enum
 
 Private Enum eHive
@@ -220,7 +221,7 @@ End Function
 ' Purpose   : Returns true if the addin is already installed.
 '---------------------------------------------------------------------------------------
 '
-Private Function IsAlreadyInstalled() As Boolean
+Public Function IsAlreadyInstalled() As Boolean
     
     Dim strPath As String
     Dim strTest As String
@@ -229,7 +230,7 @@ Private Function IsAlreadyInstalled() As Boolean
     If InstalledVersion <> vbNullString Then
         
         ' Check for addin file
-        If Dir(GetAddinFileName) = CodeProject.Name Then
+        If LCase(FSO.GetFileName(GetAddinFileName)) = LCase(CodeProject.Name) Then
             strPath = GetAddinRegPath & "&Version Control\Library"
             
             ' Check HKLM registry key
@@ -374,6 +375,7 @@ Public Sub Deploy(Optional ReleaseType As eReleaseType = Build_xxV)
     
     ' Save copy to zip folder
     strBinaryFile = CodeProject.Path & "\Version_Control_v" & AppVersion & ".zip"
+    If FSO.FileExists(strBinaryFile) Then FSO.DeleteFile strBinaryFile, True
     CreateZipFile strBinaryFile
     CopyFileToZip CodeProject.FullName, strBinaryFile
     
@@ -392,6 +394,7 @@ End Sub
 '
 Public Sub IncrementAppVersion(ReleaseType As eReleaseType)
     Dim varParts As Variant
+    If ReleaseType = Same_Version Then Exit Sub
     varParts = Split(AppVersion, ".")
     varParts(ReleaseType) = varParts(ReleaseType) + 1
     If ReleaseType < Minor_xVx Then varParts(Minor_xVx) = 0

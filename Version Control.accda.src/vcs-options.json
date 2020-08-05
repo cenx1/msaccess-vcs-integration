@@ -12,8 +12,8 @@
     "SaveTableSQL": true,
     "StripPublishOption": true,
     "AggressiveSanitize": true,
-    "TablesToExportData": {
-    },
+    "ExtractThemeFiles": false,
+    "TablesToExportData": {},
     "RunBeforeExport": "",
     "RunAfterExport": "",
     "RunAfterBuild": "",

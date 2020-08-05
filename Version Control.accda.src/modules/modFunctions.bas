@@ -3,8 +3,8 @@ Option Compare Database
 Option Private Module
 
 Public Const JSON_WHITESPACE As Integer = 2
-
-Public colVerifiedPaths As New Collection
+Public Const UTF8_BOM As String = "﻿"
+Public Const UCS2_BOM As String = "��"
 
 ' Formats used when exporting table data.
 Public Enum eTableDataExportFormat
@@ -144,7 +144,7 @@ Public Sub SanitizeFile(strPath As String)
     
     ' Skip past UTF-8 BOM header
     strText = stmInFile.ReadText(adReadLine)
-    If Left$(strText, 3) = "﻿" Then strText = Mid$(strText, 4)
+    If Left$(strText, 3) = UTF8_BOM Then strText = Mid$(strText, 4)
 
     ' Loop through lines in file
     Do Until stmInFile.EOS
@@ -277,7 +277,7 @@ Public Sub SanitizeXML(strPath As String, Options As clsOptions)
         
         ' Read line from file
         strText = stmInFile.ReadText(adReadLine)
-        If Left$(strText, 3) = "﻿" Then strText = Mid$(strText, 4)
+        If Left$(strText, 3) = UTF8_BOM Then strText = Mid$(strText, 4)
         ' Just looking for the first match.
         If Not blnFound Then
         
@@ -333,7 +333,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Public Sub MkDirIfNotExist(strPath As String)
-    If Not FSO.FolderExists(StripSlash(strPath)) Then MkDir StripSlash(strPath)
+    If Not FSO.FolderExists(StripSlash(strPath)) Then FSO.CreateFolder StripSlash(strPath)
 End Sub
 
 
@@ -345,10 +345,22 @@ End Sub
 '---------------------------------------------------------------------------------------
 '
 Public Sub ClearFilesByExtension(ByVal strFolder As String, strExt As String)
-    If Not FSO.FolderExists(StripSlash(strFolder)) Then Exit Sub
-    If Dir(strFolder & "*." & strExt) <> vbNullString Then
-        FSO.DeleteFile strFolder & "*." & strExt
+
+    Dim oFile As Scripting.File
+    Dim strFolderNoSlash As String
+    
+    ' While the Dir() function would be simpler, it does not support Unicode.
+    strFolderNoSlash = StripSlash(strFolder)
+    If FSO.FolderExists(strFolderNoSlash) Then
+        For Each oFile In FSO.GetFolder(strFolderNoSlash).Files
+            If StrComp(FSO.GetExtensionName(oFile.Name), strExt, vbTextCompare) = 0 Then
+                ' Found at least one matching file. Use the wildcard delete.
+                FSO.DeleteFile strFolderNoSlash & "\*." & strExt
+                Exit Sub
+            End If
+        Next
     End If
+    
 End Sub
 
 
@@ -384,7 +396,7 @@ Public Sub ClearOrphanedSourceFolders(cType As IDbComponent)
         ' Remove any subfolder that doesn't have a matching name.
         If Not InCollection(colNames, strSubFolderName) Then
             ' Object not found in database. Remove subfolder.
-            oSubFolder.Delete
+            oSubFolder.Delete True
             Log.Add "  Removing orphaned folder: " & strSubFolderName, Options.ShowDebug
         End If
         
@@ -440,7 +452,7 @@ Public Sub ClearOrphanedSourceFiles(cType As IDbComponent, ParamArray StrExtensi
                 ' Remove any file that doesn't have a matching name.
                 If Not InCollection(colNames, strFile) Then
                     ' Object not found in database. Remove file.
-                    Kill oFile.ParentFolder.Path & "\" & oFile.Name
+                    FSO.DeleteFile oFile.ParentFolder.Path & "\" & oFile.Name, True
                     Log.Add "  Removing orphaned file: " & strFile, Options.ShowDebug
                 End If
                 
@@ -452,7 +464,7 @@ Public Sub ClearOrphanedSourceFiles(cType As IDbComponent, ParamArray StrExtensi
     Next oFile
     
     ' Remove base folder if we don't have any files in it
-    If oFolder.Files.Count = 0 Then oFolder.Delete
+    If oFolder.Files.Count = 0 Then oFolder.Delete True
     
 End Sub
 
@@ -509,31 +521,46 @@ End Sub
 '---------------------------------------------------------------------------------------
 ' Procedure : VerifyPath
 ' Author    : Adam Waller
-' Date      : 5/15/2015
-' Purpose   : Verifies that the path to a folder exists, caching results to
-'           : avoid uneeded calls to the Dir() function.
+' Date      : 8/3/2020
+' Purpose   : Verifies that the folder path to a folder or file exists.
+'           : Use this to verify the folder path before attempting to write a file.
 '---------------------------------------------------------------------------------------
 '
-Public Sub VerifyPath(strFolderPath As String)
+Public Sub VerifyPath(strPath As String)
     
-    Dim varPath As Variant
+    Dim strFolder As String
+    Dim varParts As Variant
+    Dim intPart As Integer
+    Dim strVerified As String
     
-    ' Check cache first
-    For Each varPath In colVerifiedPaths
-        If strFolderPath = varPath Then
-            ' Found path. Assume it still exists
-            Exit Sub
-        End If
-    Next varPath
-    
-    ' If code reaches here, we don't have a copy of the path
-    ' in the cached list of verified paths. Verify and add
-    If Dir(strFolderPath, vbDirectory) = vbNullString Then
-        ' Path does not seem to exist. Create it.
-        MkDirIfNotExist strFolderPath
+    ' Determine if the path is a file or folder
+    If Right$(strPath, 1) = "\" Then
+        ' Folder name. (Folder names can contain periods)
+        strFolder = Left$(strPath, Len(strPath) - 1)
+    Else
+        ' File name
+        strFolder = FSO.GetParentFolderName(strPath)
     End If
-    colVerifiedPaths.Add strFolderPath
     
+    ' Check if full path exists.
+    If Not FSO.FolderExists(strFolder) Then
+        ' Start from the root, and build out full path, creating folders as needed.
+        varParts = Split(strFolder, "\")
+        ' Make sure the root folder exists. If it doesn't we probably have some other
+        ' issue.
+        If Not FSO.FolderExists(varParts(0)) Then
+            MsgBox2 "Path Not Found", "Could not find the path '" & varParts(0) & "' on this system.", _
+                "I was simply trying to verify this path: " & strFolder, vbExclamation
+        Else
+            ' Loop through folder structure, creating as needed.
+            strVerified = varParts(0)
+            For intPart = 1 To UBound(varParts)
+                strVerified = strVerified & "\" & varParts(intPart)
+                If Not FSO.FolderExists(strVerified) Then FSO.CreateFolder strVerified
+            Next intPart
+        End If
+    End If
+
 End Sub
 
 
@@ -712,31 +739,55 @@ End Sub
 ' Author    : Adam Waller
 ' Date      : 1/23/2019
 ' Purpose   : Save string variable to text file. (Building the folder path if needed)
+'           : Saves in UTF-8 encoding, adding a BOM if extended or unicode content
+'           : is found in the file. https://stackoverflow.com/a/53036838/4121863
 '---------------------------------------------------------------------------------------
 '
-Public Sub WriteFile(strContent As String, strPath As String)
+Public Sub WriteFile(strText As String, strPath As String)
 
-    Dim stm As New ADODB.Stream
+    Dim strContent As String
+    Dim bteUtf8() As Byte
     
-    ' Make sure the path exists before we write a file.
-    VerifyPath FSO.GetParentFolderName(strPath)
+    ' Ensure that we are ending the content with a vbcrlf
+    strContent = strText
+    If Right$(strText, 2) <> vbCrLf Then strContent = strContent & vbCrLf
+
+    ' Build a byte array from the text
+    bteUtf8 = Utf8BytesFromString(strContent)
     
+    ' Write binary content to file.
+    WriteBinaryFile bteUtf8, StringHasUnicode(strContent), strPath
+        
+End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : WriteBinaryFile
+' Author    : Adam Waller
+' Date      : 8/3/2020
+' Purpose   : Write binary content to a file with optional UTF-8 BOM.
+'---------------------------------------------------------------------------------------
+'
+Public Sub WriteBinaryFile(bteContent() As Byte, blnUtf8Bom As Boolean, strPath As String)
+
+    Dim stm As ADODB.Stream
+    Dim bteBOM(0 To 2) As Byte
+    
+    ' Write to a binary file using a Stream object
+    Set stm = New ADODB.Stream
     With stm
-        ' Use Unicode file encoding if needed.
-        If StringHasUnicode(strContent) Then
-            .Charset = "utf-8"
-        Else
-            ' Use ASCII text.
-            .Charset = "us-ascii"
-        End If
+        .Type = adTypeBinary
         .Open
-        .WriteText strContent
-        ' Ensure that we are ending the content with a vbcrlf
-        If Right$(strContent, 2) <> vbCrLf Then .WriteText vbCrLf
+        If blnUtf8Bom Then
+            bteBOM(0) = &HEF
+            bteBOM(1) = &HBB
+            bteBOM(2) = &HBF
+            .Write bteBOM
+        End If
+        .Write bteContent
+        VerifyPath strPath
         .SaveToFile strPath, adSaveCreateOverWrite
-        .Close
     End With
-    Set stm = Nothing
     
 End Sub
 
@@ -751,6 +802,7 @@ End Sub
 Public Function StringHasUnicode(strText As String) As Boolean
     Dim reg As New VBScript_RegExp_55.RegExp
     With reg
+        ' Include extended ASCII characters here.
         .Pattern = "[^\u0000-\u007F]"
         StringHasUnicode = .Test(strText)
     End With
@@ -1194,7 +1246,6 @@ End Function
 Public Function LoadOptions() As clsOptions
     Dim Options As clsOptions
     Set Options = New clsOptions
-    Options.LoadDefaultOptions
     Options.LoadProjectOptions
     Set LoadOptions = Options
 End Function
@@ -1276,20 +1327,24 @@ End Function
 ' Procedure : GetProjectByName
 ' Author    : Adam Waller
 ' Date      : 5/26/2020
-' Purpose   : Return the VBProject by file path.
+' Purpose   : Return the VBProject by file path. (Also supports network drives)
 '---------------------------------------------------------------------------------------
 '
 Private Function GetProjectByName(ByVal strPath As String) As VBProject
 
     Dim objProj As VBIDE.VBProject
-        
+    Dim strUncPath As String
+    
     ' Use currently active project by default
     Set GetProjectByName = VBE.ActiveVBProject
     
-    If VBE.ActiveVBProject.FileName <> strPath Then
+    ' VBProject filenames are UNC paths
+    strUncPath = GetUncPath(strPath)
+    
+    If VBE.ActiveVBProject.FileName <> strUncPath Then
         ' Search for project with matching filename.
         For Each objProj In VBE.VBProjects
-            If objProj.FileName = strPath Then
+            If objProj.FileName = strUncPath Then
                 Set GetProjectByName = objProj
                 Exit For
             End If
@@ -1337,37 +1392,47 @@ End Sub
 ' Author    : Adam Waller
 ' Date      : 4/23/2020
 ' Purpose   : Returns a collection containing the full paths of files in a folder.
+'           : Wildcards are supported.
 '---------------------------------------------------------------------------------------
 '
-Public Function GetFilePathsInFolder(strDirPath As String, Optional Attributes As VbFileAttribute = vbNormal) As Collection
+Public Function GetFilePathsInFolder(strFolder As String, Optional strFilePattern As String = "*.*") As Collection
     
+    Dim oFile As Scripting.File
     Dim strBaseFolder As String
-    Dim strFile As String
     
-    ' Build base folder name
-    If Attributes = vbDirectory Then
-        If FSO.FolderExists(strDirPath) Then
-            strBaseFolder = FSO.GetFolder(strDirPath) & "\"
-        Else
-            Set GetFilePathsInFolder = New Collection
-            Exit Function
-        End If
-    Else
-        strBaseFolder = FSO.GetParentFolderName(strDirPath) & "\"
+    strBaseFolder = StripSlash(strFolder)
+    Set GetFilePathsInFolder = New Collection
+    
+    If FSO.FolderExists(strBaseFolder) Then
+        For Each oFile In FSO.GetFolder(strBaseFolder).Files
+            ' Add files that match the pattern.
+            If oFile.Name Like strFilePattern Then GetFilePathsInFolder.Add oFile.Path
+        Next oFile
     End If
     
-    ' Build collection of paths
-    Set GetFilePathsInFolder = New Collection
-    strFile = Dir(strDirPath, Attributes)
-    Do While strFile <> vbNullString
-        Select Case strFile
-            Case ".", ".."
-                ' Skip these when using the vbDirectory flag.
-            Case Else
-                GetFilePathsInFolder.Add strBaseFolder & strFile
-        End Select
-        strFile = Dir()
-    Loop
+End Function
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetSubfolderPaths
+' Author    : Adam Waller
+' Date      : 7/30/2020
+' Purpose   : Return a collection of subfolders inside a folder.
+'---------------------------------------------------------------------------------------
+'
+Public Function GetSubfolderPaths(strPath As String) As Collection
+
+    Dim strBase As String
+    Dim oFolder As Scripting.Folder
+    
+    Set GetSubfolderPaths = New Collection
+    
+    strBase = StripSlash(strPath)
+    If FSO.FolderExists(strBase) Then
+        For Each oFolder In FSO.GetFolder(strBase).SubFolders
+            GetSubfolderPaths.Add oFolder.Path
+        Next oFolder
+    End If
     
 End Function
 
@@ -1432,6 +1497,7 @@ End Sub
 '---------------------------------------------------------------------------------------
 '
 Public Function ReadJsonFile(strPath As String) As Dictionary
+    
     Dim strText As String
     Dim stm As ADODB.Stream
     
@@ -1446,7 +1512,7 @@ Public Function ReadJsonFile(strPath As String) As Dictionary
         End With
         
         ' If it looks like json content, then parse into a dictionary object.
-        If Left$(strText, 3) = "﻿" Then strText = Mid$(strText, 4)
+        If Left$(strText, 3) = UTF8_BOM Then strText = Mid$(strText, 4)
         If Left$(strText, 1) = "{" Then Set ReadJsonFile = ParseJson(strText)
     End If
     
@@ -1631,12 +1697,8 @@ Public Sub SaveComponentAsText(intType As AcObjectType, strName As String, strFi
     
     Dim strTempFile As String
     
-    ' Make sure the path exists before we write a file.
-    VerifyPath FSO.GetParentFolderName(strFile)
-        
     ' Export to temporary file
     strTempFile = GetTempFile
-    
     Application.SaveAsText intType, strName, strTempFile
     
     ' Handle UCS conversion if needed
@@ -1676,7 +1738,7 @@ Public Sub LoadComponentFromText(intType As AcObjectType, strName As String, str
         strTempFile = GetTempFile
         ConvertUtf8Ucs2 strFile, strTempFile, False
         Application.LoadFromText intType, strName, strTempFile
-        Kill strTempFile
+        FSO.DeleteFile strTempFile, True
     Else
         ' Load UTF-8 file
         Application.LoadFromText intType, strName, strFile
@@ -2033,19 +2095,41 @@ End Sub
 ' Author    : Adam Waller
 ' Date      : 5/11/2020
 ' Purpose   : Returns a path relative to current database.
-'           : If a relative path is not possible, it returns an empty string
+'           : If a relative path is not possible, it returns the original full path.
 '---------------------------------------------------------------------------------------
 '
 Public Function GetRelativePath(strPath As String) As String
     
     Dim strFolder As String
+    Dim strUncPath As String
+    Dim strUncTest As String
+    Dim strRelative As String
     
     ' Check for matching parent folder as relative to the project path.
-    strFolder = CurrentProject.Path & "\"
+    strFolder = UncPath(CurrentProject.Path) & "\"
+    
+    ' Default to original path if no relative path could be resolved.
+    strRelative = strPath
+    
+    ' Compare strPath to the current project path
     If InStr(1, strPath, strFolder, vbTextCompare) = 1 Then
         ' In export folder or subfolder. Simple replacement
-        GetRelativePath = "rel:" & Mid$(strPath, Len(strFolder) + 1)
+        strRelative = "rel:" & Mid$(strPath, Len(strFolder) + 1)
+    Else
+        ' Check UNC path for network drives
+        strUncPath = GetUncPath(strPath)
+        If StrComp(strUncPath, strPath, vbTextCompare) <> 0 Then
+            ' We are dealing with a network drive
+            strUncTest = GetRelativePath(strUncPath)
+            If StrComp(strUncPath, strUncTest, vbTextCompare) <> 0 Then
+                ' Resolved to relative UNC path
+                strRelative = strUncTest
+            End If
+        End If
     End If
+    
+    ' Return relative (or original) path
+    GetRelativePath = strRelative
 
 End Function
 
@@ -2120,7 +2204,6 @@ Public Function DictionaryEqual(dOne As Dictionary, dTwo As Dictionary) As Boole
 End Function
 
 
-
 '---------------------------------------------------------------------------------------
 ' Procedure : CreateZipFile
 ' Author    : Adam Waller
@@ -2138,11 +2221,11 @@ Public Sub CreateZipFile(strPath As String)
     strHeader = "PK" & Chr$(5) & Chr$(6) & String$(18, 0)
     
     ' Write to file
-    If FSO.FileExists(strPath) Then Kill strPath
-    intFile = FreeFile
-    Open strPath For Output As #intFile
-        Print #intFile, strHeader
-    Close #intFile
+    VerifyPath strPath
+    With FSO.CreateTextFile(strPath, True)
+        .Write strHeader
+        .Close
+    End With
     
 End Sub
 
@@ -2214,7 +2297,7 @@ End Sub
 ' Procedure : ExtractFromZip
 ' Author    : Adam Waller
 ' Date      : 6/3/2020
-' Purpose   : Extracts all the files from a zip archive.
+' Purpose   : Extracts all the files from a zip archive. (Requires a .zip extension)
 '---------------------------------------------------------------------------------------
 '
 Public Sub ExtractFromZip(strZip As String, strDestFolder As String, _
@@ -2228,7 +2311,7 @@ Public Sub ExtractFromZip(strZip As String, strDestFolder As String, _
     Dim strFolder As String
     
     ' Build folder path, and make sure it exists
-    If Not FSO.FolderExists(strDestFolder) Then MkDir strDestFolder
+    If Not FSO.FolderExists(strDestFolder) Then FSO.CreateFolder strDestFolder
     strFolder = FSO.GetFolder(strDestFolder).Path
     
     ' Must use variants for the CopyHere function to work.
@@ -2267,3 +2350,107 @@ End Sub
 Public Sub Pause(sngSeconds As Single)
     Sleep sngSeconds * 1000
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : DatabaseOpen
+' Author    : Adam Waller
+' Date      : 7/14/2020
+' Purpose   : Returns true if a database (or ADP project) is currently open.
+'---------------------------------------------------------------------------------------
+'
+Public Function DatabaseOpen() As Boolean
+    DatabaseOpen = Not (CurrentDb Is Nothing And CurrentProject.Connection Is Nothing)
+    'DatabaseOpen = Workspaces(0).Databases.Count > 0   ' Another approach
+End Function
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetUncPath
+' Author    : Adam Waller
+' Date      : 7/14/2020
+' Purpose   : Returns the UNC path for a network location (if applicable)
+'---------------------------------------------------------------------------------------
+'
+Public Function GetUncPath(strPath As String)
+
+    Dim strDrive As String
+    Dim strUNC As String
+    
+    strUNC = strPath
+    strDrive = FSO.GetDriveName(strPath)
+    With FSO.GetDrive(strDrive)
+        If .DriveType = Remote Then
+            strUNC = Replace(strPath, strDrive, .ShareName, , 1, vbTextCompare)
+        End If
+    End With
+    GetUncPath = strUNC
+    
+End Function
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : CheckForLegacyModules
+' Author    : Adam Waller
+' Date      : 7/16/2020
+' Purpose   : Informs the user if the database contains a legacy module from another
+'           : fork of this project. (Some users might not realize that these are not
+'           : needed anymore.)
+'---------------------------------------------------------------------------------------
+'
+Public Sub CheckForLegacyModules()
+    If FSO.FileExists(Options.GetExportFolder & "modules\VCS_ImportExport.bas") Then
+        MsgBox2 "Legacy Files not Needed", _
+            "Other forks of the MSAccessVCS project used additional VBA modules to export code." & vbCrLf & _
+            "This is no longer needed when using the installed Version Control Add-in.", _
+            "Feel free to remove the legacy VCS_* modules from your database project and enjoy" & vbCrLf & _
+            "a simpler, cleaner code base for ongoing development.  :-)", vbInformation, "Just a Suggestion..."
+    End If
+End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetLastModifiedDate
+' Author    : Adam Waller
+' Date      : 7/30/2020
+' Purpose   : Get the last modified date on a folder or file with Unicode support.
+'---------------------------------------------------------------------------------------
+'
+Public Function GetLastModifiedDate(strPath As String) As Date
+    
+    Dim oFile As Scripting.File
+    Dim oFolder As Scripting.Folder
+    
+    If FSO.FileExists(strPath) Then
+        Set oFile = FSO.GetFile(strPath)
+        GetLastModifiedDate = oFile.DateLastModified
+    ElseIf FSO.FolderExists(strPath) Then
+        Set oFolder = FSO.GetFolder(strPath)
+        GetLastModifiedDate = oFolder.DateLastModified
+    End If
+        
+End Function
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetFileBytes
+' Author    : Adam Waller
+' Date      : 7/31/2020
+' Purpose   : Returns a byte array of the file contents.
+'           : This function supports Unicode paths, unlike VBA's Open statement.
+'---------------------------------------------------------------------------------------
+'
+Public Function GetFileBytes(strPath As String, Optional lngBytes As Long = adReadAll) As Byte()
+
+    Dim stmFile As ADODB.Stream
+
+    Set stmFile = New ADODB.Stream
+    With stmFile
+        .Type = adTypeBinary
+        .Open
+        .LoadFromFile strPath
+        GetFileBytes = .Read(lngBytes)
+        .Close
+    End With
+    
+End Function
