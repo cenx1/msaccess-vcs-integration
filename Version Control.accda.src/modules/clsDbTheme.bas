@@ -119,7 +119,7 @@ Private Sub IDbComponent_Import(strFile As String)
     If blnIsFolder Then
         ' We need to compress this folder back into a zipped theme file.
         ' Build zip file name
-        strZip = FSO.GetBaseName(strFile) & ".zip"
+        strZip = strFile & ".zip"
         ' Get theme name
         strThemeName = GetObjectNameFromFileName(FSO.GetBaseName(strZip))
         ' Remove any existing zip file
