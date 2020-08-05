@@ -1,6 +1,6 @@
 {
   "Info": {
-    "AddinVersion": "3.2.6",
+    "AddinVersion": "3.3.2",
     "AccessVersion": "16.0 64-bit"
   },
   "Options": {
@@ -12,8 +12,9 @@
     "SaveTableSQL": true,
     "StripPublishOption": true,
     "AggressiveSanitize": true,
-    "ExtractThemeFiles": false,
-    "TablesToExportData": {},
+    "ExtractThemeFiles": true,
+    "TablesToExportData": {
+    },
     "RunBeforeExport": "",
     "RunAfterExport": "",
     "RunAfterBuild": "",
