@@ -1,6 +1,6 @@
 {
   "Info": {
-    "AddinVersion": "3.3.9",
+    "AddinVersion": "3.4.0",
     "AccessVersion": "16.0 64-bit"
   },
   "Options": {
@@ -13,7 +13,8 @@
     "StripPublishOption": true,
     "AggressiveSanitize": true,
     "ExtractThemeFiles": true,
-    "TablesToExportData": {},
+    "TablesToExportData": {
+    },
     "RunBeforeExport": "",
     "RunAfterExport": "",
     "RunAfterBuild": "",
