@@ -13,8 +13,7 @@
     "StripPublishOption": true,
     "AggressiveSanitize": true,
     "ExtractThemeFiles": true,
-    "TablesToExportData": {
-    },
+    "TablesToExportData": {},
     "RunBeforeExport": "",
     "RunAfterExport": "",
     "RunAfterBuild": "",
