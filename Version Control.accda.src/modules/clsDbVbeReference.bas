@@ -110,7 +110,7 @@ Private Sub IDbComponent_Import(strFile As String)
             If Not dExisting.Exists(CStr(varKey)) Then
                 If dRef.Exists("GUID") Then
                     varVersion = Split(dRef("Version"), ".")
-                    AddFromGuid proj, dRef("GUID"), CLng(varVersion(0)), CLng(varVersion(1))
+                    AddFromGuid proj, CStr(varKey), dRef("GUID"), CLng(varVersion(0)), CLng(varVersion(1))
                 ElseIf dRef.Exists("FullPath") Then
                     strPath = GetPathFromRelative(Decrypt(dRef("FullPath")))
                     If FSO.FileExists(strPath) Then
@@ -128,22 +128,55 @@ End Sub
 
 '---------------------------------------------------------------------------------------
 ' Procedure : AddFromGuid
-' Author    : Adam Waller
-' Date      : 5/26/2020
-' Purpose   : Return a GUID compatible with Access 2010, the lowest targeted version.
-'           : Only add references here when they cause compile errors on Access 2010.
-'           : Further reading: https://stackoverflow.com/questions/45088306
+' Author    : Adam Waller / Indigo744
+' Date      : 11/22/2020
+' Purpose   : Try to add a GUID with a specific version, then with version 0.0
 '---------------------------------------------------------------------------------------
 '
-Private Sub AddFromGuid(proj As VBIDE.VBProject, strGuid As String, lngMajor As Long, lngMinor As Long)
+Private Sub AddFromGuid(proj As VBIDE.VBProject, strName As String, strGuid As String, lngMajor As Long, lngMinor As Long)
 
-    Select Case strGuid
-        Case "{2DF8D04C-5BFA-101B-BDE5-00AA0044DE52}"   ' Office 2.8 => Office 2.5
-            proj.References.AddFromGuid "{2DF8D04C-5BFA-101B-BDE5-00AA0044DE52}", 2, 5
-        Case Else
-            ' Use specified GUID
-            proj.References.AddFromGuid strGuid, lngMajor, lngMinor
-    End Select
+    ' Try to add the GUID with the specific version requested
+    ' We might encounter a reference that is not available in this version
+    On Error GoTo ErrHandlerWithVersion
+    proj.References.AddFromGuid strGuid, lngMajor, lngMinor
+
+    ' Normal exit
+    On Error GoTo 0
+    Exit Sub
+
+ErrHandlerWithVersion:
+    ' The version specified may not be available, try to add with version 0.0
+    ' We might still encounter a reference that is still not available
+    On Error GoTo ErrHandler
+    proj.References.AddFromGuid strGuid, 0, 0
+    
+    ' Resume on next line
+    Err.Clear
+    Resume Next
+
+ErrHandler:
+
+    ' Log error
+    Log.Add "ERROR: Could not add VBE reference to " & strName
+    
+    If Err.Number = -2147319779 Then
+        ' Object library not registered
+        Log.Add "Encountered error " & Err.Number & ": '" & Err.Description & _
+            "' while attempting to add GUID " & strGuid & " version " & lngMajor & "." & lngMinor & _
+            " to this project. This may occur when the library does not exist on the build machine," & _
+            " or when the version on the build machine is lower than the source file reference version." & _
+            " See GitHub issue #96 for an example of how to resolve this problem.", Options.ShowDebug
+        
+    Else
+        ' Other error
+        Log.Add "Encountered error " & Err.Number & ": '" & Err.Description & _
+            "' while attempting to add GUID " & strGuid & " version " & lngMajor & "." & lngMinor & _
+            " to this project.", Options.ShowDebug
+    End If
+    
+    ' Resume on next line
+    Err.Clear
+    Resume Next
 
 End Sub
 
@@ -211,7 +244,7 @@ End Function
 Private Sub IDbComponent_ClearOrphanedSourceFiles()
     Dim strFile As String
     strFile = IDbComponent_BaseFolder & "references.csv"
-    If FSO.FileExists(strFile) Then FSO.DeleteFile strFile, True    ' Remove legacy file
+    If FSO.FileExists(strFile) Then DeleteFile strFile, True    ' Remove legacy file
 End Sub
 
 

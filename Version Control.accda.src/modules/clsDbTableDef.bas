@@ -46,11 +46,13 @@ Private Sub IDbComponent_Export()
     If tbl.Connect = vbNullString Then
     
         ' Check for existing file
-        If FSO.FileExists(strFile) Then FSO.DeleteFile strFile, True
+        If FSO.FileExists(strFile) Then DeleteFile strFile, True
 
         ' Save structure in XML format
         VerifyPath strFile
+        Perf.OperationStart "App.ExportXML()"
         Application.ExportXML acExportTable, m_Table.Name, , strFile ', , , , acExportAllTableAndFieldProperties ' Add support for this later.
+        Perf.OperationEnd
     
     Else
         ' Linked table - Save as JSON
@@ -71,7 +73,9 @@ Private Sub IDbComponent_Export()
                 Next idx
             End If
         End With
-        WriteJsonFile Me, dItem, strFile, "Linked Table"
+        ' If Fast Save is enabled, make sure we write this file each time so the
+        ' modified date on the file is updated.
+        WriteJsonFile Me, dItem, strFile, "Linked Table", Not Options.UseFastSave
     End If
     
     ' Optionally save in SQL format
@@ -100,30 +104,23 @@ Public Sub SaveTableSqlDef(dbs As DAO.Database, strTable As String, strFolder As
     Dim strFile As String
     Dim tdf As DAO.TableDef
 
+    Perf.OperationStart "Save Table SQL"
     Set tdf = dbs.TableDefs(strTable)
 
     With cData
-        .Add "CREATE TABLE ["
-        .Add strTable
-        .Add "] ("
-        .Add vbCrLf
+        .Add "CREATE TABLE [", strTable, "] (", vbCrLf
 
         ' Loop through fields
         For Each fld In tdf.Fields
-            .Add "  ["
-            .Add fld.Name
-            .Add "] "
+            .Add "  [", fld.Name, "] "
             If (fld.Attributes And dbAutoIncrField) Then
                 .Add "AUTOINCREMENT"
             Else
-                .Add GetTypeString(fld.Type)
-                .Add " "
+                .Add GetTypeString(fld.Type), " "
             End If
             Select Case fld.Type
                 Case dbText, dbVarBinary
-                    .Add "("
-                    .Add fld.Size
-                    .Add ")"
+                    .Add "(", fld.Size, ")"
             End Select
 
             ' Indexes
@@ -134,16 +131,11 @@ Public Sub SaveTableSqlDef(dbs As DAO.Database, strTable As String, strFolder As
                     If idx.Unique Then cAttr.Add " UNIQUE"
                     If idx.Required Then cAttr.Add " NOT NULL"
                     If idx.Foreign Then AddFieldReferences dbs, idx.Fields, strTable, cAttr
-                    If Len(cAttr.GetStr) > 0 Then
-                        .Add " CONSTRAINT ["
-                        .Add idx.Name
-                        .Add "]"
-                    End If
+                    If Len(cAttr.GetStr) > 0 Then .Add " CONSTRAINT [", idx.Name, "]"
                 End If
                 .Add cAttr.GetStr
             Next
-            .Add ","
-            .Add vbCrLf
+            .Add ",", vbCrLf
         Next fld
         .Remove 3   ' strip off last comma and crlf
 
@@ -154,35 +146,30 @@ Public Sub SaveTableSqlDef(dbs As DAO.Database, strTable As String, strFolder As
                 If idx.Fields.Count > 1 Then
                     If Len(cAttr.GetStr) = 0 Then cAttr.Add " CONSTRAINT "
                     If idx.Primary Then
-                        cAttr.Add "["
-                        cAttr.Add idx.Name
-                        cAttr.Add "] PRIMARY KEY ("
+                        cAttr.Add "[", idx.Name, "] PRIMARY KEY ("
                         For Each fld In idx.Fields
-                            cAttr.Add fld.Name
-                            cAttr.Add ", "
+                            cAttr.Add "[", fld.Name, "], "
                         Next fld
                         cAttr.Remove 2
                         cAttr.Add ")"
                     End If
                     If Not idx.Foreign Then
                         If Len(cAttr.GetStr) > 0 Then
-                            .Add ","
-                            .Add vbCrLf
-                            .Add "  "
-                            .Add cAttr.GetStr
+                            .Add ",", vbCrLf
+                            .Add "  ", cAttr.GetStr
                             AddFieldReferences dbs, idx.Fields, strTable, cData
                         End If
                     End If
                 End If
             Next idx
         End If
-        .Add vbCrLf
-        .Add ")"
+        .Add vbCrLf, ")"
 
         ' Build file name and create file.
         strFile = strFolder & GetSafeFileName(strTable) & ".sql"
         WriteFile .GetStr, strFile
-
+        Perf.OperationEnd
+        
     End With
 
 End Sub
@@ -205,12 +192,9 @@ Private Sub AddFieldReferences(dbs As Database, fld As Object, strTable As Strin
             If FieldsIdentical(fld, rel.Fields) Then
 
                 ' References
-                cData.Add " REFERENCES "
-                cData.Add rel.Table
-                cData.Add " ("
+                cData.Add " REFERENCES [", rel.Table, "] ("
                 For Each fld2 In rel.Fields
-                    cData.Add fld2.Name
-                    cData.Add ","
+                    cData.Add "[", fld2.Name, "],"
                 Next fld2
                 ' Remove trailing comma
                 If rel.Fields.Count > 0 Then cData.Remove 1
@@ -332,11 +316,24 @@ End Function
 '
 Private Sub IDbComponent_Import(strFile As String)
 
+    Dim blnUseTemp As Boolean
+    Dim strTempFile As String
+    
     Select Case LCase$(FSO.GetExtensionName(strFile))
         Case "json"
             ImportLinkedTable strFile
         Case "xml"
-            Application.ImportXML strFile, acStructureAndData
+            ' The ImportXML function does not properly handle UrlEncoded paths
+            blnUseTemp = (InStr(1, strFile, "%") > 0)
+            If blnUseTemp Then
+                ' Import from (safe) temporary file name.
+                strTempFile = GetTempFile
+                FSO.CopyFile strFile, strTempFile
+                Application.ImportXML strTempFile, acStructureOnly
+                DeleteFile strTempFile
+            Else
+                Application.ImportXML strFile, acStructureOnly
+            End If
     End Select
 End Sub
 

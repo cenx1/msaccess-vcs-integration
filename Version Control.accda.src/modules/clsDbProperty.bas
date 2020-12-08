@@ -114,7 +114,7 @@ Private Sub IDbComponent_Import(strFile As String)
         Set dItems = dImport("Items")
         For Each varKey In dItems.Keys
             Select Case varKey
-                Case "Connection", "Name", "Version" ' Can't set these properties
+                Case "Connection", "Name", "Version", "CollatingOrder" ' Can't set these properties
                 Case Else
                     blnAdd = False
                     varValue = dItems(varKey)("Value")
@@ -203,7 +203,7 @@ End Function
 Private Sub IDbComponent_ClearOrphanedSourceFiles()
     Dim strFile As String
     strFile = IDbComponent_BaseFolder & "properties.txt"
-    If FSO.FileExists(strFile) Then FSO.DeleteFile strFile, True     ' Remove legacy file
+    If FSO.FileExists(strFile) Then DeleteFile strFile, True     ' Remove legacy file
 End Sub
 
 

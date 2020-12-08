@@ -33,68 +33,32 @@ Implements IDbComponent
 Private Sub IDbComponent_Export()
 
     Dim cDevMode As clsDevMode
-    Dim strTempFile As String
 
+    ' Make sure path exists before attempting export.
+    VerifyPath IDbComponent_SourceFile
+    
     ' Check Save Print Vars settings
     If Options.SavePrintVars Then
 
         ' Take a little more manual approach on the export so we can grab the
         ' printer settings before sanitizing the file.
         Set cDevMode = New clsDevMode
-    
-        ' Export to temporary file
-        strTempFile = GetTempFile
         
         ' Save as text, then grab and save printer info.
-        Application.SaveAsText acReport, m_Report.Name, strTempFile
-        cDevMode.LoadFromExportFile strTempFile
+        Perf.OperationStart "App.SaveAsText()"
+        Application.SaveAsText acReport, m_Report.Name, IDbComponent_SourceFile
+        Perf.OperationEnd
+        cDevMode.LoadFromExportFile IDbComponent_SourceFile
         WriteJsonFile Me, cDevMode.GetDictionary, _
             GetPrintVarsFileName(m_Report.Name), "Report Print Settings"
         
-        ' Handle UCS conversion if needed
-        ConvertUcs2Utf8 strTempFile, IDbComponent_SourceFile
-        
-        ' Sanitize source file
+        ' Sanitize source file (Also converts to UTF-8)
         SanitizeFile IDbComponent_SourceFile
         
     Else
         ' Simple export of report object
         SaveComponentAsText acReport, m_Report.Name, IDbComponent_SourceFile
     End If
-
-End Sub
-
-
-'---------------------------------------------------------------------------------------
-' Procedure : ImportPrintVars
-' Author    : Adam Waller
-' Date      : 5/7/2020
-' Purpose   : Import the print vars back into the report.
-'---------------------------------------------------------------------------------------
-'
-Public Sub ImportPrintVars(strFile As String)
-
-'    Dim DevModeString As str_DEVMODE
-'    Dim tDevMode As type_DEVMODE
-'    Dim DevModeExtra As String
-'    Dim dFile As Dictionary
-'    Dim strReport As String
-'
-'    Set dFile = ReadJsonFile(strFile)
-'    If Not dFile Is Nothing Then
-'
-'        ' Prepare data structures
-'        tDevMode = DictionaryToDevMode(dFile("Items"))
-'        LSet DevModeString = tDevMode
-'        Mid(DevModeExtra, 1, 94) = DevModeString.RGB
-'
-'        ' Apply to report
-'        strReport = GetObjectNameFromFileName(strFile)
-'        DoCmd.Echo False
-'        DoCmd.OpenReport strReport, acViewDesign
-'        Reports(strReport).PrtDevMode = DevModeExtra
-'        DoCmd.Close acReport, strReport, acSaveYes
-'    End If
 
 End Sub
 
@@ -109,14 +73,28 @@ End Sub
 Private Sub IDbComponent_Import(strFile As String)
 
     Dim strReport As String
-
-    ' Import the report object
+    Dim strTempFile As String
+    Dim dFile As Dictionary
+    
     strReport = GetObjectNameFromFileName(strFile)
-    LoadComponentFromText acReport, strReport, strFile
-
-    ' Import the print vars if specified
-    If Options.SavePrintVars Then
-        ImportPrintVars GetPrintVarsFileName(strReport)
+    Set dFile = ReadJsonFile(GetPrintVarsFileName(strReport))
+    
+    ' Check to ensure dictionary was loaded
+    If dFile Is Nothing Then
+        ' Missing print vars file. (Could be legacy export)
+        LoadComponentFromText acReport, strReport, strFile
+    Else
+        ' Insert DevMode structures into file before importing.
+        With New clsDevMode
+            ' Load default printer settings, then overlay
+            ' settings saved with report.
+            .ApplySettings dFile("Items")
+            ' Insert the settings into a combined export file.
+            strTempFile = .AddToExportFile(strFile)
+            ' Load the report file with the DevMode settings
+            LoadComponentFromText acReport, strReport, strTempFile
+            DeleteFile strTempFile, True
+        End With
     End If
 
 End Sub

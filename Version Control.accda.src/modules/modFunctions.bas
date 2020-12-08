@@ -51,6 +51,7 @@ Public Enum eDatabaseComponentType
     edbFileProperty
     edbSharedImage
     edbDocument
+    edbHiddenAttribute
     edbSavedSpec
     edbImexSpec
     edbNavPaneGroup
@@ -64,6 +65,7 @@ End Enum
 Private Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As LongPtr)
 
 ' Logging and options classes
+Private m_Perf As clsPerformance
 Private m_Log As clsLog
 Private m_Options As clsOptions
 
@@ -75,162 +77,176 @@ Private m_FSO As FileSystemObject
 '---------------------------------------------------------------------------------------
 ' Procedure : SanitizeFile
 ' Author    : Adam Waller
-' Date      : 1/23/2019
-' Purpose   : Sanitize the text file (forms and reports)
+' Date      : 11/4/2020
+' Purpose   : Rewritten version of sanitize function
 '---------------------------------------------------------------------------------------
 '
 Public Sub SanitizeFile(strPath As String)
-    
-    Dim sngOverall As Single
-    Dim sngTimer As Single
-    Dim cData As New clsConcat
-    Dim strText As String
-    Dim rxBlock As New VBScript_RegExp_55.RegExp
-    Dim rxLine As New VBScript_RegExp_55.RegExp
-    Dim rxIndent As New VBScript_RegExp_55.RegExp
-    Dim objMatches As VBScript_RegExp_55.MatchCollection
+
+    Dim strFile As String
+    Dim varLines As Variant
+    Dim lngLine As Long
+    Dim cData As clsConcat
+    Dim strLine As String
+    Dim strTLine As String
+    Dim blnInsideIgnoredBlock As Boolean
+    Dim intIndent As Integer
     Dim blnIsReport As Boolean
-    Dim cPattern As New clsConcat
-    Dim stmInFile As ADODB.Stream
-    Dim blnGetLine As Boolean
-    
-    On Error GoTo 0
-    
-    ' Timers to monitor performance
-    sngTimer = Timer
-    sngOverall = sngTimer
-        
-    '  Setup Block matching Regex.
-    rxBlock.IgnoreCase = False
-    
-    ' Build main search patterns
-    With cPattern
-    
-        '  Match PrtDevNames / Mode with or without W
-        If Options.AggressiveSanitize Then .Add "(?:"
-        .Add "PrtDev(?:Names|Mode)[W]?"
-        If Options.AggressiveSanitize Then
-          '  Add and group aggressive matches
-          .Add "|GUID|""GUID""|NameMap|dbLongBinary ""DOL"""
-          .Add ")"
-        End If
-        
-        '  Ensure that this is the begining of a block.
-        .Add " = Begin"
-        
-        ' Set block search pattern
-        rxBlock.Pattern = .GetStr
-        .Clear
-        
-        '  Setup Line Matching Regex.
-        .Add "^\s*(?:"
-        .Add "Checksum ="
-        .Add "|BaseInfo|NoSaveCTIWhenDisabled =1"
-        If Options.StripPublishOption Then
-            .Add "|dbByte ""PublishToWeb"" =""1"""
-            .Add "|PublishOption =1"
-        End If
-        .Add ")"
+    Dim sngStartTime As Single
 
-        ' Set line search pattern
-        rxLine.Pattern = .GetStr
-    End With
+    ' Read text from file, and split into lines
+    If HasUcs2Bom(strPath) Then
+        strFile = ReadFile(strPath, "Unicode")
+    Else
+        strFile = ReadFile(strPath)
+    End If
+    Perf.OperationStart "Sanitize File"
+    varLines = Split(strFile, vbCrLf)
     
-    ' Open file to read contents line by line.
-    Set stmInFile = New ADODB.Stream
-    stmInFile.Charset = "UTF-8"
-    stmInFile.Open
-    stmInFile.LoadFromFile strPath
-    
-    ' Skip past UTF-8 BOM header
-    strText = stmInFile.ReadText(adReadLine)
-    If Left$(strText, 3) = UTF8_BOM Then strText = Mid$(strText, 4)
+    ' Delete original file now so we can write it immediately
+    ' when the new data has been constructed.
+    DeleteFile strPath
 
-    ' Loop through lines in file
-    Do Until stmInFile.EOS
-    
-        ' Show progress increment during longer conversions
-        Log.Increment
-    
-        ' Check if we need to get a new line of text
-        If blnGetLine Then
-            strText = stmInFile.ReadText(adReadLine)
+    ' Initialize concatenation class to include line breaks
+    ' after each line that we add when building new file text.
+    sngStartTime = Timer
+    Set cData = New clsConcat
+    cData.AppendOnAdd = vbCrLf
+
+    ' Using a do loop since we may adjust the line counter
+    ' during a loop iteration.
+    Do While lngLine <= UBound(varLines)
+        
+        ' Get unmodified and trimmed line
+        strLine = varLines(lngLine)
+        strTLine = Trim$(strLine)
+        
+        ' Improve performance by reducing comparisons
+        If Len(strTLine) > 3 And blnInsideIgnoredBlock Then
+            ' Ignore this line
+        ElseIf Len(strTLine) > 60 And StartsWith(strTLine, "0x") Then
+            ' Add binary data line. No need to test this line further.
+            cData.Add strLine
         Else
-            blnGetLine = True
-        End If
+            ' Run the rest of the tests
+            Select Case strTLine
+            
+                ' File version
+                Case "Version =21"
+                    ' Change version down to 20 to allow import into Access 2010.
+                    ' (Haven't seen any significant issues with this.)
+                    cData.Add "Version =20"
+                
+                ' Print settings blocks to ignore
+                Case "PrtMip = Begin", _
+                    "PrtDevMode = Begin", _
+                    "PrtDevModeW = Begin", _
+                    "PrtDevNames = Begin", _
+                    "PrtDevNamesW = Begin"
+                    ' Set flag to ignore lines inside this block.
+                    blnInsideIgnoredBlock = True
         
-        ' Skip lines starting with line pattern
-        If rxLine.Test(strText) Then
-            
-            ' set up initial pattern
-            rxIndent.Pattern = "^(\s+)\S"
-            
-            ' Get indentation level.
-            Set objMatches = rxIndent.Execute(strText)
-            
-            ' Setup pattern to match current indent
-            Select Case objMatches.Count
-                Case 0
-                    rxIndent.Pattern = "^" & vbNullString
+                ' Aggressive sanitize blocks
+                Case "GUID = Begin", _
+                    "NameMap = Begin", _
+                    "dbLongBinary ""DOL"" = Begin", _
+                    "dbBinary ""GUID"" = Begin"
+                    If Options.AggressiveSanitize Then blnInsideIgnoredBlock = True
+                    
+                ' Single lines to ignore
+                Case "NoSaveCTIWhenDisabled =1"
+        
+                ' Publish option (used in Queries)
+                Case "dbByte ""PublishToWeb"" =""1""", _
+                    "PublishOption =1"
+                    If Not Options.StripPublishOption Then cData.Add strLine
+                
+                ' End of block section
+                Case "End"
+                    If blnInsideIgnoredBlock Then
+                        ' Reached the end of the ignored block.
+                        blnInsideIgnoredBlock = False
+                    Else
+                        ' End of included block
+                        cData.Add strLine
+                    End If
+                
+                ' See if this file is from a report object
+                Case "Begin Report"
+                    ' Turn flag on to ignore Right and Bottom lines
+                    blnIsReport = True
+                    cData.Add strLine
+                    
                 Case Else
-                    rxIndent.Pattern = "^" & objMatches(0).SubMatches(0)
+                    If blnInsideIgnoredBlock Then
+                        ' Skip if we are in an ignored block
+                    ElseIf StartsWith(strTLine, "Checksum =") Then
+                        ' Ignore Checksum lines, since they will change.
+                    ElseIf StartsWith(strTLine, "BaseInfo =") Then
+                        ' BaseInfo is used with combo boxes, similar to RowSource.
+                        ' Since the value could span multiple lines, we need to
+                        ' check the indent level of the following lines to see how
+                        ' many lines to skip.
+                        intIndent = GetIndent(strLine)
+                        ' Preview the next line, and check the indent level
+                        Do While GetIndent(varLines(lngLine + 1)) > intIndent
+                            ' Move
+                            lngLine = lngLine + 1
+                        Loop
+                    ElseIf blnIsReport And StartsWith(strLine, "    Right =") Then
+                        ' Ignore this line. (Not important, and frequently changes.)
+                    ElseIf blnIsReport And StartsWith(strLine, "    Bottom =") Then
+                        ' Turn flag back off now that we have ignored these two lines.
+                        blnIsReport = False
+                    Else
+                        ' All other lines will be added.
+                        cData.Add strLine
+                    End If
+            
             End Select
-            rxIndent.Pattern = rxIndent.Pattern & "\S"
-            
-            ' Skip lines with deeper indentation
-            Do While Not stmInFile.EOS
-                strText = stmInFile.ReadText(adReadLine)
-                ' Exit loop when we find a blank line or matching indent pattern.
-                If Trim(strText) = vbNullString Or rxIndent.Test(strText) Then Exit Do
-            Loop
-            
-            ' We've moved on at least one line so restart the
-            ' regex testing when starting the loop again.
-            blnGetLine = False
-        
-        ' Skip blocks of code matching block pattern
-        ElseIf rxBlock.Test(strText) Then
-            Do While Not stmInFile.EOS
-                strText = stmInFile.ReadText(adReadLine)
-                If InStr(strText, "End") Then Exit Do
-            Loop
-        
-        ' Check for report object
-        ElseIf InStr(1, strText, "Begin Report") = 1 Then
-            blnIsReport = True
-            cData.Add strText
-            cData.Add vbCrLf
-            
-        ' Watch for end of report (and skip these lines)
-        ElseIf blnIsReport And (InStr(1, strText, "    Right =") Or InStr(1, strText, "    Bottom =")) Then
-            If InStr(1, strText, "    Bottom =") Then blnIsReport = False
-        
-        ' Change version down to 20 to allow import into Access 2010.
-        ' (Haven't seen any significant issues with this.)
-        ElseIf strText = "Version =21" Then
-            cData.Add "Version =20"
-            cData.Add vbCrLf
-
-        ' Regular lines of data to add.
-        Else
-            cData.Add strText
-            cData.Add vbCrLf
         End If
-        
+    
+        ' Increment counter to next line
+        lngLine = lngLine + 1
     Loop
     
-    ' Close and delete original file
-    stmInFile.Close
-    FSO.DeleteFile strPath
+    ' Remove last vbcrlf
+    cData.Remove Len(vbCrLf)
+
+    ' Log performance
+    Perf.OperationEnd
+    Log.Add "    Sanitized in " & Format$(Timer - sngStartTime, "0.00") & " seconds.", Options.ShowDebug
     
-    ' Write file all at once, rather than line by line.
-    ' (Otherwise the code can bog down with tens of thousands of write operations)
+    ' Replace original file with sanitized version
     WriteFile cData.GetStr, strPath
-
-    ' Show stats if debug turned on.
-    Log.Add "    Sanitized in " & Format$(Timer - sngOverall, "0.00") & " seconds.", Options.ShowDebug
-
+    
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : StartsWith
+' Author    : Adam Waller
+' Date      : 11/5/2020
+' Purpose   : See if a string begins with a specified string.
+'---------------------------------------------------------------------------------------
+'
+Public Function StartsWith(strText As String, strStartsWith As String, Optional Compare As VbCompareMethod = vbBinaryCompare) As Boolean
+    StartsWith = (InStr(1, strText, strStartsWith, Compare) = 1)
+End Function
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetIndent
+' Author    : Adam Waller
+' Date      : 11/5/2020
+' Purpose   : Returns the number of spaces until the first non-space character.
+'---------------------------------------------------------------------------------------
+'
+Public Function GetIndent(strLine As Variant) As Integer
+    Dim strChar As String
+    strChar = Left$(Trim(strLine), 1)
+    If strLine <> vbNullString Then GetIndent = InStr(1, strLine, strChar) - 1
+End Function
 
 
 '---------------------------------------------------------------------------------------
@@ -300,7 +316,7 @@ Public Sub SanitizeXML(strPath As String, Options As clsOptions)
     
     ' Close and delete original file
     stmInFile.Close
-    FSO.DeleteFile strPath
+    DeleteFile strPath
     
     ' Write file all at once, rather than line by line.
     ' (Otherwise the code can bog down with tens of thousands of write operations)
@@ -355,7 +371,7 @@ Public Sub ClearFilesByExtension(ByVal strFolder As String, strExt As String)
         For Each oFile In FSO.GetFolder(strFolderNoSlash).Files
             If StrComp(FSO.GetExtensionName(oFile.Name), strExt, vbTextCompare) = 0 Then
                 ' Found at least one matching file. Use the wildcard delete.
-                FSO.DeleteFile strFolderNoSlash & "\*." & strExt
+                DeleteFile strFolderNoSlash & "\*." & strExt
                 Exit Sub
             End If
         Next
@@ -430,6 +446,7 @@ Public Sub ClearOrphanedSourceFiles(cType As IDbComponent, ParamArray StrExtensi
     If Not FSO.FolderExists(cType.BaseFolder) Then Exit Sub
     
     ' Cache a list of source file names for actual database objects
+    Perf.OperationStart "Clear Orphaned"
     Set colNames = New Collection
     For Each cItem In cType.GetAllFromDB
         colNames.Add FSO.GetFileName(cItem.SourceFile)
@@ -452,7 +469,7 @@ Public Sub ClearOrphanedSourceFiles(cType As IDbComponent, ParamArray StrExtensi
                 ' Remove any file that doesn't have a matching name.
                 If Not InCollection(colNames, strFile) Then
                     ' Object not found in database. Remove file.
-                    FSO.DeleteFile oFile.ParentFolder.Path & "\" & oFile.Name, True
+                    DeleteFile oFile.ParentFolder.Path & "\" & oFile.Name, True
                     Log.Add "  Removing orphaned file: " & strFile, Options.ShowDebug
                 End If
                 
@@ -465,6 +482,7 @@ Public Sub ClearOrphanedSourceFiles(cType As IDbComponent, ParamArray StrExtensi
     
     ' Remove base folder if we don't have any files in it
     If oFolder.Files.Count = 0 Then oFolder.Delete True
+    Perf.OperationEnd
     
 End Sub
 
@@ -732,81 +750,6 @@ Public Sub Shell2(strCmd As String)
     objShell.Exec strCmd
     Set objShell = Nothing
 End Sub
-
-
-'---------------------------------------------------------------------------------------
-' Procedure : WriteFile
-' Author    : Adam Waller
-' Date      : 1/23/2019
-' Purpose   : Save string variable to text file. (Building the folder path if needed)
-'           : Saves in UTF-8 encoding, adding a BOM if extended or unicode content
-'           : is found in the file. https://stackoverflow.com/a/53036838/4121863
-'---------------------------------------------------------------------------------------
-'
-Public Sub WriteFile(strText As String, strPath As String)
-
-    Dim strContent As String
-    Dim bteUtf8() As Byte
-    
-    ' Ensure that we are ending the content with a vbcrlf
-    strContent = strText
-    If Right$(strText, 2) <> vbCrLf Then strContent = strContent & vbCrLf
-
-    ' Build a byte array from the text
-    bteUtf8 = Utf8BytesFromString(strContent)
-    
-    ' Write binary content to file.
-    WriteBinaryFile bteUtf8, StringHasUnicode(strContent), strPath
-        
-End Sub
-
-
-'---------------------------------------------------------------------------------------
-' Procedure : WriteBinaryFile
-' Author    : Adam Waller
-' Date      : 8/3/2020
-' Purpose   : Write binary content to a file with optional UTF-8 BOM.
-'---------------------------------------------------------------------------------------
-'
-Public Sub WriteBinaryFile(bteContent() As Byte, blnUtf8Bom As Boolean, strPath As String)
-
-    Dim stm As ADODB.Stream
-    Dim bteBOM(0 To 2) As Byte
-    
-    ' Write to a binary file using a Stream object
-    Set stm = New ADODB.Stream
-    With stm
-        .Type = adTypeBinary
-        .Open
-        If blnUtf8Bom Then
-            bteBOM(0) = &HEF
-            bteBOM(1) = &HBB
-            bteBOM(2) = &HBF
-            .Write bteBOM
-        End If
-        .Write bteContent
-        VerifyPath strPath
-        .SaveToFile strPath, adSaveCreateOverWrite
-    End With
-    
-End Sub
-
-
-'---------------------------------------------------------------------------------------
-' Procedure : StringHasUnicode
-' Author    : Adam Waller
-' Date      : 3/6/2020
-' Purpose   : Returns true if the string contains non-ASCI characters.
-'---------------------------------------------------------------------------------------
-'
-Public Function StringHasUnicode(strText As String) As Boolean
-    Dim reg As New VBScript_RegExp_55.RegExp
-    With reg
-        ' Include extended ASCII characters here.
-        .Pattern = "[^\u0000-\u007F]"
-        StringHasUnicode = .Test(strText)
-    End With
-End Function
 
 
 '---------------------------------------------------------------------------------------
@@ -1128,36 +1071,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Public Function SelectionInActiveProject() As Boolean
-    SelectionInActiveProject = (Application.VBE.ActiveVBProject.FileName = UncPath(CurrentProject.FullName))
-End Function
-
-
-'---------------------------------------------------------------------------------------
-' Procedure : UncPath
-' Author    : Adam Waller
-' Date      : 5/18/2015
-' Purpose   : Returns the UNC path of a mapped network drive, if applicable
-'---------------------------------------------------------------------------------------
-'
-Public Function UncPath(strPath As String) As String
-    
-    Dim strDrive As String
-    Dim strShare As String
-    
-    ' Identify drive letter and share name
-    With FSO
-        strDrive = .GetDriveName(.GetAbsolutePathName(strPath))
-        strShare = .GetDrive(strDrive).ShareName
-    End With
-    
-    If strShare <> vbNullString Then
-        ' Replace drive with UNC path
-        UncPath = strShare & Mid$(strPath, Len(strDrive) + 1)
-    Else
-        ' Return unmodified path
-        UncPath = strPath
-    End If
-        
+    SelectionInActiveProject = (Application.VBE.ActiveVBProject.FileName = GetUncPath(CurrentProject.FullName))
 End Function
 
 
@@ -1507,7 +1421,7 @@ Public Function ReadJsonFile(strPath As String) As Dictionary
             .Charset = "UTF-8"
             .Open
             .LoadFromFile strPath
-            strText = .ReadText
+            strText = .ReadText(adReadAll)
             .Close
         End With
         
@@ -1656,10 +1570,23 @@ End Function
 
 
 '---------------------------------------------------------------------------------------
+' Procedure : Perf
+' Author    : Adam Waller
+' Date      : 11/3/2020
+' Purpose   : Wrapper for performance logging class
+'---------------------------------------------------------------------------------------
+'
+Public Function Perf() As clsPerformance
+    If m_Perf Is Nothing Then Set m_Perf = New clsPerformance
+    Set Perf = m_Perf
+End Function
+
+
+'---------------------------------------------------------------------------------------
 ' Procedure : Log
 ' Author    : Adam Waller
 ' Date      : 4/28/2020
-' Purpose   :
+' Purpose   : Wrapper for log file class
 '---------------------------------------------------------------------------------------
 '
 Public Function Log() As clsLog
@@ -1701,15 +1628,21 @@ Public Sub SaveComponentAsText(intType As AcObjectType, strName As String, strFi
     
     ' Export to temporary file
     strTempFile = GetTempFile
+    Perf.OperationStart "App.SaveAsText()"
     Application.SaveAsText intType, strName, strTempFile
-    
-    ' Handle UCS conversion if needed
-    ConvertUcs2Utf8 strTempFile, strFile
+    Perf.OperationEnd
+    VerifyPath strFile
     
     ' Sanitize certain object types
     Select Case intType
         Case acForm, acReport, acQuery, acMacro
-            SanitizeFile strFile
+            ' Sanitizing converts to UTF-8
+            If FSO.FileExists(strFile) Then DeleteFile (strFile)
+            SanitizeFile strTempFile
+            FSO.MoveFile strTempFile, strFile
+        Case Else
+            ' Handle UCS conversion if needed
+            ConvertUcs2Utf8 strTempFile, strFile
     End Select
     
     ' Normal exit
@@ -1752,11 +1685,15 @@ Public Sub LoadComponentFromText(intType As AcObjectType, strName As String, str
         ' Perform file conversion, and import from temp file.
         strTempFile = GetTempFile
         ConvertUtf8Ucs2 strFile, strTempFile, False
+        Perf.OperationStart "App.LoadFromText()"
         Application.LoadFromText intType, strName, strTempFile
-        FSO.DeleteFile strTempFile, True
+        Perf.OperationEnd
+        DeleteFile strTempFile, True
     Else
         ' Load UTF-8 file
+        Perf.OperationStart "App.LoadFromText()"
         Application.LoadFromText intType, strName, strFile
+        Perf.OperationEnd
     End If
     
 End Sub
@@ -1973,6 +1910,43 @@ End Function
 
 
 '---------------------------------------------------------------------------------------
+' Procedure : SortCollection
+' Author    : Adam Waller
+' Date      : 11/14/2020
+' Purpose   : Sort a collection of items by value. (Returns a new sorted collection)
+'---------------------------------------------------------------------------------------
+'
+Public Function SortCollectionByValue(colSource As Collection) As Collection
+
+    Dim colSorted As Collection
+    Dim varItem As Variant
+    Dim varItems() As Variant
+    Dim lngCnt As Long
+    
+    ' Don't need to sort empty collection or single item
+    If colSource.Count < 2 Then
+        Set SortCollectionByValue = colSource
+        Exit Function
+    End If
+    
+    ' Build and sort array of keys
+    ReDim varItems(0 To colSource.Count - 1)
+    For lngCnt = 0 To UBound(varItems)
+        varItems(lngCnt) = colSource(lngCnt + 1)
+    Next lngCnt
+    QuickSort varItems
+    
+    ' Build and return new collection using sorted values
+    Set colSorted = New Collection
+    For lngCnt = 0 To UBound(varItems)
+        colSorted.Add varItems(lngCnt)
+    Next lngCnt
+    Set SortCollectionByValue = colSorted
+    
+End Function
+
+
+'---------------------------------------------------------------------------------------
 ' Procedure : SortDictionaryByKeys
 ' Author    : Adam Waller
 ' Date      : 5/8/2020
@@ -2121,7 +2095,7 @@ Public Function GetRelativePath(strPath As String) As String
     Dim strRelative As String
     
     ' Check for matching parent folder as relative to the project path.
-    strFolder = UncPath(CurrentProject.Path) & "\"
+    strFolder = GetUncPath(CurrentProject.Path) & "\"
     
     ' Default to original path if no relative path could be resolved.
     strRelative = strPath
@@ -2131,14 +2105,17 @@ Public Function GetRelativePath(strPath As String) As String
         ' In export folder or subfolder. Simple replacement
         strRelative = "rel:" & Mid$(strPath, Len(strFolder) + 1)
     Else
-        ' Check UNC path for network drives
-        strUncPath = GetUncPath(strPath)
-        If StrComp(strUncPath, strPath, vbTextCompare) <> 0 Then
-            ' We are dealing with a network drive
-            strUncTest = GetRelativePath(strUncPath)
-            If StrComp(strUncPath, strUncTest, vbTextCompare) <> 0 Then
-                ' Resolved to relative UNC path
-                strRelative = strUncTest
+        ' Make sure we have a path, not just a file name.
+        If InStr(1, strRelative, "\") > 0 Then
+            ' Check UNC path for network drives
+            strUncPath = GetUncPath(strPath)
+            If StrComp(strUncPath, strPath, vbTextCompare) <> 0 Then
+                ' We are dealing with a network drive
+                strUncTest = GetRelativePath(strUncPath)
+                If StrComp(strUncPath, strUncTest, vbTextCompare) <> 0 Then
+                    ' Resolved to relative UNC path
+                    strRelative = strUncTest
+                End If
             End If
         End If
     End If
@@ -2230,7 +2207,6 @@ End Function
 Public Sub CreateZipFile(strPath As String)
     
     Dim strHeader As String
-    Dim intFile As Integer
     
     ' Build Zip file header
     strHeader = "PK" & Chr$(5) & Chr$(6) & String$(18, 0)
@@ -2444,28 +2420,4 @@ Public Function GetLastModifiedDate(strPath As String) As Date
         GetLastModifiedDate = oFolder.DateLastModified
     End If
         
-End Function
-
-
-'---------------------------------------------------------------------------------------
-' Procedure : GetFileBytes
-' Author    : Adam Waller
-' Date      : 7/31/2020
-' Purpose   : Returns a byte array of the file contents.
-'           : This function supports Unicode paths, unlike VBA's Open statement.
-'---------------------------------------------------------------------------------------
-'
-Public Function GetFileBytes(strPath As String, Optional lngBytes As Long = adReadAll) As Byte()
-
-    Dim stmFile As ADODB.Stream
-
-    Set stmFile = New ADODB.Stream
-    With stmFile
-        .Type = adTypeBinary
-        .Open
-        .LoadFromFile strPath
-        GetFileBytes = .Read(lngBytes)
-        .Close
-    End With
-    
 End Function

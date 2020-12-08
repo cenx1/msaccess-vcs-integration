@@ -40,15 +40,17 @@ Private Sub IDbComponent_Export()
     For intFormat = 1 To eTableDataExportFormat.[_Last]
         ' Build file name for this format
         strFile = IDbComponent_BaseFolder & GetSafeFileName(m_Table.Name) & "." & GetExtByFormat(intFormat)
-        If FSO.FileExists(strFile) Then FSO.DeleteFile strFile, True
+        If FSO.FileExists(strFile) Then DeleteFile strFile, True
         If intFormat = Me.Format Then
             ' Export the table using this format.
             Select Case intFormat
                 Case etdTabDelimited:   ExportTableDataAsTDF m_Table.Name
                 Case etdXML
-                    ' Export data rows as XML
+                    ' Export data rows as XML (encoding default is UTF-8)
                     VerifyPath strFile
+                    Perf.OperationStart "App.ExportXML()"
                     Application.ExportXML acExportTable, m_Table.Name, strFile
+                    Perf.OperationEnd
                     SanitizeXML strFile, Options
             End Select
         End If
@@ -119,8 +121,8 @@ Private Sub ImportTableDataTDF(strFile As String)
     Dim dCols As Dictionary
     Dim fld As DAO.Field
     Dim dbs As DAO.Database
-    Dim rst As Recordset
-    Dim stm As Scripting.TextStream
+    Dim rst As DAO.Recordset
+    Dim stm As ADODB.Stream
     Dim strLine As String
     Dim varLine As Variant
     Dim varHeader As Variant
@@ -137,15 +139,24 @@ Private Sub ImportTableDataTDF(strFile As String)
     Next fld
     
     ' Clear any existing records before importing this data.
-    dbs.Execute "delete from " & strTable, dbFailOnError
+    dbs.Execute "delete from [" & strTable & "]", dbFailOnError
     Set rst = dbs.OpenRecordset(strTable)
     
     ' Read file line by line
-    Set stm = FSO.OpenTextFile(strFile, ForReading, False)
-    Set rst = dbs.OpenRecordset(strTable)
-    Do While Not stm.AtEndOfStream
-        strLine = stm.ReadLine
+    Set stm = New ADODB.Stream
+    With stm
+        .Charset = "UTF-8"
+        .Open
+        .LoadFromFile strFile
+    End With
+    
+    ' Loop through lines in file
+    Do While Not stm.EOS
+        strLine = stm.ReadText(adReadLine)
+        ' See if the header has already been parsed.
         If Not IsArray(varHeader) Then
+            ' Skip past any UTF-8 BOM header
+            If Left$(strLine, 3) = UTF8_BOM Then strLine = Mid$(strLine, 4)
             ' Read header line
             varHeader = Split(strLine, vbTab)
         Else
@@ -156,15 +167,29 @@ Private Sub ImportTableDataTDF(strFile As String)
                 For intCol = 0 To UBound(varHeader)
                     ' Check to see if field exists in the table
                     If dCols.Exists(varHeader(intCol)) Then
-                        ' Perform any needed replacements
-                        strValue = MultiReplace(CStr(varLine(intCol)), _
-                            "\\", "\", "\r\n", vbCrLf, "\r", vbCr, "\n", vbLf, "\t", vbTab)
-                        If strValue <> CStr(varLine(intCol)) Then
-                            ' Use replaced string value
-                            rst.Fields(varHeader(intCol)).Value = strValue
+                        ' Check for empty string or null.
+                        If varLine(intCol) = vbNullString Then
+                            ' The field could have a default value, but the imported
+                            ' data may still be a null value.
+                            If Not IsNull(rst.Fields(varHeader(intCol)).Value) Then
+                                ' Could possibly hit a problem with the storage of
+                                ' zero length strings instead of nulls. Since we can't
+                                ' really differentiate between these in a TDF file,
+                                ' we will go with NULL for now.
+                                'rst.Fields(varHeader(intCol)).AllowZeroLength
+                                rst.Fields(varHeader(intCol)).Value = Null
+                            End If
                         Else
-                            ' Use variant value without the string conversion
-                            rst.Fields(varHeader(intCol)).Value = varLine(intCol)
+                            ' Perform any needed replacements
+                            strValue = MultiReplace(CStr(varLine(intCol)), _
+                                "\\", "\", "\r\n", vbCrLf, "\r", vbCr, "\n", vbLf, "\t", vbTab)
+                            If strValue <> CStr(varLine(intCol)) Then
+                                ' Use replaced string value
+                                rst.Fields(varHeader(intCol)).Value = strValue
+                            Else
+                                ' Use variant value without the string conversion
+                                rst.Fields(varHeader(intCol)).Value = varLine(intCol)
+                            End If
                         End If
                     End If
                 Next intCol
@@ -205,9 +230,7 @@ Private Function GetTableExportSql(strTable As String) As String
     ' Build list of fields
     With cFieldList
         For Each fld In tdf.Fields
-            .Add "["
-            .Add fld.Name
-            .Add "]"
+            .Add "[", fld.Name, "]"
             intCnt = intCnt + 1
             If intCnt < intFields Then .Add ", "
         Next fld
@@ -215,11 +238,8 @@ Private Function GetTableExportSql(strTable As String) As String
 
     ' Build select statement
     With cText
-        .Add "SELECT "
-        .Add cFieldList.GetStr
-        .Add " FROM ["
-        .Add strTable
-        .Add "] ORDER BY "
+        .Add "SELECT ", cFieldList.GetStr
+        .Add " FROM [", strTable, "] ORDER BY "
         .Add cFieldList.GetStr
     End With
 
@@ -230,21 +250,41 @@ End Function
 
 '---------------------------------------------------------------------------------------
 ' Procedure : Import
-' Author    : Adam Waller
-' Date      : 4/23/2020
+' Author    : Adam Waller, Florian Jenn
+' Date      : 4/23/2020, 2020-10-26
 ' Purpose   : Import the table data from a file.
 '---------------------------------------------------------------------------------------
 '
 Private Sub IDbComponent_Import(strFile As String)
 
+    Dim blnUseTemp As Boolean
+    Dim strTempFile As String
     Dim strTable As String
 
     ' Import from different formats (XML is preferred for data integrity)
     Select Case GetFormatByExt(strFile)
         Case etdXML
             strTable = GetObjectNameFromFileName(strFile)
-            If TableExists(strTable) Then DoCmd.DeleteObject acTable, strTable
-            Application.ImportXML strFile, acStructureAndData
+            ' Make sure table exists before importing data to it.
+            If TableExists(strTable) Then
+                ' The ImportXML function does not properly handle UrlEncoded paths
+                blnUseTemp = (InStr(1, strFile, "%") > 0)
+                If blnUseTemp Then
+                    ' Import from (safe) temporary file name.
+                    strTempFile = GetTempFile
+                    FSO.CopyFile strFile, strTempFile
+                    Application.ImportXML strTempFile, acAppendData
+                    DeleteFile strTempFile
+                Else
+                    Application.ImportXML strFile, acAppendData
+                End If
+            Else
+                ' Warn user that table does not exist.
+                MsgBox2 "Table structure not found for '" & strTable & "'", _
+                    "The structure of a table should be created before importing data into it.", _
+                    "Please ensure that the table definition file exists in \tbldefs.", vbExclamation
+                Log.Add "WARNING: Table definition does not exist for '" & strTable & "'. This must be created before importing table data."
+            End If
         Case etdTabDelimited
             ImportTableDataTDF strFile
     End Select

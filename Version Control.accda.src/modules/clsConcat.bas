@@ -17,6 +17,9 @@ Option Explicit
 ' and Chris Lucas - http://www.planetsourcecode.com/vb/scripts/ShowCode.asp?txtCodeId=37141&lngWId=1
 ' for their inspiration with these concepts.
 
+' Set this to any character or string to add after each
+' call to `.Add()`. A common example would be vbCrLf.
+Public AppendOnAdd As String
 
 ' Set up an array of pages to hold strings
 Private astrPages() As String
@@ -46,8 +49,25 @@ Private Sub Class_Initialize()
 End Sub
 
 
+' Add 1 or more strings (avoiding the string conversion of paramarray)
+Public Sub Add(str1 As String, Optional str2 As String, Optional str3 As String, Optional str4 As String, Optional str5 As String, _
+    Optional str6 As String, Optional str7 As String, Optional str8 As String, Optional str9 As String, Optional str10 As String)
+    If str1 <> vbNullString Then AddString str1
+    If str2 <> vbNullString Then AddString str2
+    If str3 <> vbNullString Then AddString str3
+    If str4 <> vbNullString Then AddString str4
+    If str5 <> vbNullString Then AddString str5
+    If str6 <> vbNullString Then AddString str6
+    If str7 <> vbNullString Then AddString str7
+    If str8 <> vbNullString Then AddString str8
+    If str9 <> vbNullString Then AddString str9
+    If str10 <> vbNullString Then AddString str10
+    AddString AppendOnAdd
+End Sub
+
+
 ' Add to the string buffer
-Public Sub Add(strAddString As String)
+Private Sub AddString(strAddString As String)
 
     Dim lngLen          As Long
     Dim lngRemaining    As Long
@@ -149,6 +169,65 @@ Public Function GetStr() As String
 End Function
 
 
+' Return a partial string from a specified position
+Public Function MidStr(lngStart As Long, Optional lngLength)
+
+    Dim lngPage As Long
+    Dim lngPos As Long
+    Dim lngStartPage As Long
+    Dim lngStartPos As Long
+    
+    ' Prepare return string length.
+    If IsMissing(lngLength) Then
+        ' Return remaining string after lngStart
+        lngLength = (Me.Length - lngStart) + 1
+        MidStr = Space$(lngLength)
+    Else
+        ' Return a specified number of characters
+        MidStr = Space$(lngLength)
+    End If
+    
+    ' Determine start page and position for return string
+    lngStartPage = lngStart \ clngPageSize
+    lngStartPos = lngStart - (lngStartPage * clngPageSize)
+    
+    ' Loop through filled pages, overlaying on return string.
+    ' (Last partial page is automatically trimmed based on returned string size.)
+    If Len(MidStr) > 0 Then
+        For lngPage = lngStartPage To lngCurrentPage
+            ' Could start at any point on first page
+            If lngPage = lngStartPage Then
+                Mid$(MidStr, 1) = Mid$(astrPages(lngPage), lngStartPos)
+                lngPos = clngPageSize - lngStartPos
+            Else
+                ' Pull whole pages as needed
+                Mid$(MidStr, lngPos) = astrPages(lngPage)
+                lngPos = lngPos + clngPageSize
+            End If
+            ' Exit when we have filled the requested string.
+            If lngPos >= lngLength Then Exit For
+        Next lngPage
+    End If
+
+End Function
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : Right
+' Author    : Adam Waller
+' Date      : 11/5/2020
+' Purpose   : Return the rightmost specified number of characters.
+'---------------------------------------------------------------------------------------
+'
+Public Function RightStr(lngLength As Long) As String
+    If Me.Length > lngLength Then
+        RightStr = MidStr((Me.Length - lngLength) + 1)
+    Else
+        RightStr = GetStr
+    End If
+End Function
+
+
 ' returns the length of the string, based on the current position
 ' (Faster than building the string just to check the length)
 Public Function Length() As Double
@@ -189,6 +268,7 @@ Public Sub SelfTest()
     Add "abcdefghij"
     Add "k"
     Debug.Assert Len(GetStr) = 11
+    Debug.Assert Length = 11
     Remove 2
     Debug.Assert Len(GetStr) = 9
     Add "jkl"
@@ -197,5 +277,12 @@ Public Sub SelfTest()
     Add "m123456789"
     Remove 11
     Debug.Assert GetStr = "abcdefghijk"
+    Debug.Assert MidStr(1, 1) = "a"
+    Debug.Assert MidStr(11, 1) = "k"
+    Debug.Assert MidStr(2, 3) = "bcd"
+    Debug.Assert MidStr(8) = "hijk"
+    Debug.Assert MidStr(10, 1) = "j"
+    Debug.Assert RightStr(1) = "k"
+    Debug.Assert RightStr(100) = "abcdefghijk"
     
 End Sub
