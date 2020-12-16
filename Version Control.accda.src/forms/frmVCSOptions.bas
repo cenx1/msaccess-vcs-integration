@@ -21,7 +21,7 @@ Begin Form
     Top =2430
     Right =-255
     Bottom =10335
-    DatasheetGridlinesColor =14806254
+    DatasheetGridlinesColor =15132391
     RecSrcDt = Begin
         0x79e78b777268e540
     End
@@ -889,7 +889,7 @@ Begin Form
                                     Top =5580
                                     Width =2340
                                     TabIndex =12
-                                    ForeColor =16711680
+                                    ForeColor =12673797
                                     Name ="cmdExplainOptions"
                                     Caption ="Explain options..."
                                     HyperlinkAddress ="https://github.com/joyfullservice/msaccess-vcs-integration/wiki/Documentation#op"
@@ -989,7 +989,7 @@ Begin Form
                                     FontSize =10
                                     BackColor =14262935
                                     BorderColor =15321539
-                                    ForeColor =16711680
+                                    ForeColor =12673797
                                     Name ="lblPrintSettingsOptions"
                                     Caption ="Options..."
                                     OnClick ="[Event Procedure]"
