@@ -2,7 +2,7 @@
   "Info": {
     "Class": "clsDbProperty",
     "Description": "Database Properties (DAO)",
-    "VCS Version": "3.5.5"
+    "VCS Version": "3.5.8"
   },
   "Items": {
     "AccessVersion": {
@@ -42,7 +42,7 @@
       "Type": 10
     },
     "AppVersion": {
-      "Value": "3.5.5",
+      "Value": "3.5.8",
       "Type": 10
     },
     "Auto Compact": {

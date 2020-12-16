@@ -164,7 +164,7 @@ End Sub
 ' Purpose   : Build the project from source files.
 '---------------------------------------------------------------------------------------
 '
-Public Sub Build(strSourceFolder As String)
+Public Sub Build(strSourceFolder As String, Optional blnHeadless As Boolean = False)
 
     Dim strPath As String
     Dim strBackup As String
@@ -176,7 +176,7 @@ Public Sub Build(strSourceFolder As String)
     ' Close the current database if it is currently open.
     If Not (CurrentDb Is Nothing And CurrentProject.Connection Is Nothing) Then
         ' Need to close the current database before we can replace it.
-        RunBuildAfterClose strSourceFolder
+        RunBuildAfterClose strSourceFolder, blnHeadless
         Exit Sub
     End If
     
@@ -210,7 +210,7 @@ Public Sub Build(strSourceFolder As String)
     Perf.StartTiming
     
     ' Check if we are building the add-in file
-    If FSO.GetFileName(strPath) = CodeProject.Name Then
+    If FSO.GetFileName(strPath) = CodeProject.Name Or blnHeadless Then
         ' When building this add-in file, we should output to the debug
         ' window instead of the GUI form. (Since we are importing
         ' a form with the same name as the GUI form.)
@@ -311,10 +311,15 @@ Public Sub Build(strSourceFolder As String)
     Else
         ' Allow navigation pane to refresh list of objects.
         DoEvents
-        ' Show message box when build is complete.
-        MsgBox2 "Build Complete for '" & CurrentProject.Name & "'", _
-            "Note that some settings may not take effect until this database is reopened.", _
-            "A backup of the previous build was saved as '" & FSO.GetFileName(strBackup) & "'.", vbInformation
+        
+        If blnHeadless Then
+            Application.Quit
+        Else
+            ' Show message box when build is complete.
+            MsgBox2 "Build Complete for '" & CurrentProject.Name & "'", _
+                "Note that some settings may not take effect until this database is reopened.", _
+                "A backup of the previous build was saved as '" & FSO.GetFileName(strBackup) & "'.", vbInformation
+        End If
     End If
     
 End Sub
