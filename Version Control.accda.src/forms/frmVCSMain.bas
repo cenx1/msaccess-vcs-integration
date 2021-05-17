@@ -1,4 +1,4 @@
-Version =20
+﻿Version =20
 VersionRequired =20
 Begin Form
     PopUp = NotDefault
@@ -15,12 +15,12 @@ Begin Form
     GridY =24
     Width =9360
     DatasheetFontHeight =11
-    ItemSuffix =27
-    Left =-17265
-    Top =2430
-    Right =-6105
-    Bottom =10335
-    DatasheetGridlinesColor =15132391
+    ItemSuffix =32
+    Left =-25575
+    Top =1710
+    Right =-255
+    Bottom =14295
+    DatasheetGridlinesColor =14806254
     RecSrcDt = Begin
         0x79e78b777268e540
     End
@@ -111,6 +111,15 @@ Begin Form
             PressedForeThemeColorIndex =0
             PressedForeTint =75.0
         End
+        Begin CheckBox
+            BorderLineStyle =0
+            LabelX =230
+            LabelY =-30
+            BorderThemeColorIndex =1
+            BorderShade =65.0
+            GridlineThemeColorIndex =1
+            GridlineShade =65.0
+        End
         Begin TextBox
             AddColon = NotDefault
             FELineBreak = NotDefault
@@ -186,7 +195,7 @@ Begin Form
                 End
                 Begin CommandButton
                     OverlapFlags =93
-                    Left =4740
+                    Left =5100
                     Top =2400
                     Width =2880
                     Height =900
@@ -675,9 +684,9 @@ Begin Form
                         0x0000000049454e44ae426082
                     End
 
-                    LayoutCachedLeft =4740
+                    LayoutCachedLeft =5100
                     LayoutCachedTop =2400
-                    LayoutCachedWidth =7620
+                    LayoutCachedWidth =7980
                     LayoutCachedHeight =3300
                     PictureCaptionArrangement =5
                     BackColor =14262935
@@ -722,8 +731,8 @@ Begin Form
                 End
                 Begin CommandButton
                     OverlapFlags =93
-                    Left =4740
-                    Top =3780
+                    Left =5100
+                    Top =3960
                     Width =2880
                     Height =900
                     TabIndex =2
@@ -1229,10 +1238,10 @@ Begin Form
                         0xc50be7919696f6d83c807f0002cb58d9e9f027800000000049454e44ae426082
                     End
 
-                    LayoutCachedLeft =4740
-                    LayoutCachedTop =3780
-                    LayoutCachedWidth =7620
-                    LayoutCachedHeight =4680
+                    LayoutCachedLeft =5100
+                    LayoutCachedTop =3960
+                    LayoutCachedWidth =7980
+                    LayoutCachedHeight =4860
                     PictureCaptionArrangement =5
                     BackColor =14262935
                     BackThemeColorIndex =-1
@@ -1572,38 +1581,6 @@ Begin Form
                     ForeThemeColorIndex =1
                     ForeTint =100.0
                 End
-                Begin TextBox
-                    Visible = NotDefault
-                    EnterKeyBehavior = NotDefault
-                    SpecialEffect =2
-                    OldBorderStyle =0
-                    OverlapFlags =215
-                    TextFontFamily =49
-                    IMESentenceMode =3
-                    Left =3120
-                    Top =1140
-                    Width =5160
-                    Height =4440
-                    FontSize =10
-                    LeftMargin =144
-                    TopMargin =144
-                    RightMargin =144
-                    BottomMargin =144
-                    BorderColor =10921638
-                    Name ="txtLog"
-                    FontName ="Lucida Console"
-                    GridlineColor =10921638
-                    TextFormat =1
-                    HorizontalAnchor =2
-                    VerticalAnchor =2
-
-                    LayoutCachedLeft =3120
-                    LayoutCachedTop =1140
-                    LayoutCachedWidth =8280
-                    LayoutCachedHeight =5580
-                    ThemeFontIndex =-1
-                    ForeTint =100.0
-                End
                 Begin Label
                     Visible = NotDefault
                     OverlapFlags =93
@@ -1681,6 +1658,125 @@ Begin Form
                     ForeThemeColorIndex =10
                     ForeTint =100.0
                 End
+                Begin Line
+                    Visible = NotDefault
+                    OverlapFlags =95
+                    Left =2460
+                    Top =1080
+                    Width =660
+                    BorderColor =16777215
+                    Name ="Line27"
+                    GridlineColor =10921638
+                    LayoutCachedLeft =2460
+                    LayoutCachedTop =1080
+                    LayoutCachedWidth =3120
+                    LayoutCachedHeight =1080
+                    BorderThemeColorIndex =1
+                End
+                Begin CheckBox
+                    OverlapFlags =93
+                    Left =5700
+                    Top =3390
+                    TabIndex =7
+                    BorderColor =10921638
+                    Name ="chkFullExport"
+                    GridlineColor =10921638
+
+                    LayoutCachedLeft =5700
+                    LayoutCachedTop =3390
+                    LayoutCachedWidth =5960
+                    LayoutCachedHeight =3630
+                    Begin
+                        Begin Label
+                            OverlapFlags =255
+                            Left =5925
+                            Top =3360
+                            Width =1335
+                            Height =270
+                            FontSize =10
+                            BorderColor =8355711
+                            ForeColor =5324600
+                            Name ="Label29"
+                            Caption ="Full Export"
+                            GridlineColor =10921638
+                            LayoutCachedLeft =5925
+                            LayoutCachedTop =3360
+                            LayoutCachedWidth =7260
+                            LayoutCachedHeight =3630
+                            ForeThemeColorIndex =-1
+                            ForeTint =100.0
+                        End
+                    End
+                End
+                Begin CheckBox
+                    Enabled = NotDefault
+                    OverlapFlags =93
+                    Left =5700
+                    Top =4950
+                    TabIndex =8
+                    BorderColor =10921638
+                    Name ="chkFullBuild"
+                    DefaultValue ="True"
+                    GridlineColor =10921638
+
+                    LayoutCachedLeft =5700
+                    LayoutCachedTop =4950
+                    LayoutCachedWidth =5960
+                    LayoutCachedHeight =5190
+                    Begin
+                        Begin Label
+                            OverlapFlags =255
+                            Left =5925
+                            Top =4920
+                            Width =1335
+                            Height =270
+                            FontSize =10
+                            BorderColor =8355711
+                            ForeColor =5324600
+                            Name ="Label31"
+                            Caption ="Full Build"
+                            GridlineColor =10921638
+                            LayoutCachedLeft =5925
+                            LayoutCachedTop =4920
+                            LayoutCachedWidth =7260
+                            LayoutCachedHeight =5190
+                            ForeThemeColorIndex =-1
+                            ForeTint =100.0
+                        End
+                    End
+                End
+                Begin TextBox
+                    Visible = NotDefault
+                    EnterKeyBehavior = NotDefault
+                    SpecialEffect =2
+                    OldBorderStyle =0
+                    OverlapFlags =247
+                    TextFontFamily =49
+                    IMESentenceMode =3
+                    Left =3120
+                    Top =1080
+                    Width =5160
+                    Height =4500
+                    FontSize =10
+                    LeftMargin =144
+                    TopMargin =144
+                    RightMargin =144
+                    BottomMargin =144
+                    BorderColor =10921638
+                    Name ="txtLog"
+                    FontName ="Lucida Console"
+                    GridlineColor =10921638
+                    TextFormat =1
+                    HorizontalAnchor =2
+                    VerticalAnchor =2
+
+                    LayoutCachedLeft =3120
+                    LayoutCachedTop =1080
+                    LayoutCachedWidth =8280
+                    LayoutCachedHeight =5580
+                    ThemeFontIndex =-1
+                    ForeTint =100.0
+                End
             End
         End
     End
@@ -1716,41 +1812,40 @@ Private Sub cmdBuild_Click()
     
     ' Make sure we use the add-in to build the add-in.
     If CodeProject.FullName = CurrentProject.FullName Then
-        DoCmd.Hourglass False
         MsgBox2 "Build must be run from Add-In", "Instead of opening this form to build the add-in," & vbCrLf & _
             "please install and use the Version Control add-in from the Add-in menu", , vbExclamation
+        DoCmd.Hourglass False
         Exit Sub
     End If
     
     ' Close the current database if it is currently open.
-    If Not (CurrentDb Is Nothing And CurrentProject.Connection Is Nothing) _
-        And FolderHasVcsOptionsFile(Options.GetExportFolder) Then
-        ' Build message text before we turn off the hourglass since first access may take a second.
-        strMsg(0) = "Build " & GetVBProjectForCurrentDB.Name & " (" & CurrentProject.Name & ") from source?"
-        strMsg(1) = "Click 'Yes' to rebuild* this database from source files in this folder:" & vbCrLf & Options.GetExportFolder & vbCrLf & _
-            "* (This database will be renamed as a backup before building " & CurrentProject.Name & " from source.)"
-        strMsg(2) = "Click 'No' to select another project, or 'Cancel' to go back to the previous screen."
-        DoCmd.Hourglass False
-        intChoice = MsgBox2(strMsg(0), strMsg(1), strMsg(2), vbYesNoCancel + vbQuestion + vbDefaultButton3)
-        If intChoice = vbYes Then
-            ' Rebuild the open project
-            strFolder = Options.GetExportFolder
-        ElseIf intChoice = vbCancel Then
-            ' Canceled out of build option.
-            Exit Sub
+    If Not (CurrentDb Is Nothing And CurrentProject.Connection Is Nothing) Then
+        If FolderHasVcsOptionsFile(Options.GetExportFolder) Then
+            strMsg(0) = "Build " & GetVBProjectForCurrentDB.Name & " (" & CurrentProject.Name & ") from source?"
+            strMsg(1) = "Click 'Yes' to rebuild* this database from source files in this folder:" & vbCrLf & Options.GetExportFolder & vbCrLf & _
+                "* (This database will be renamed as a backup before building " & CurrentProject.Name & " from source.)"
+            strMsg(2) = "Click 'No' to select another project, or 'Cancel' to go back to the previous screen."
+            intChoice = MsgBox2(strMsg(0), strMsg(1), strMsg(2), vbYesNoCancel + vbQuestion + vbDefaultButton3)
+            If intChoice = vbYes Then
+                ' Rebuild the open project
+                strFolder = Options.GetExportFolder
+            ElseIf intChoice = vbCancel Then
+                ' Canceled out of build option.
+                DoCmd.Hourglass False
+                Exit Sub
+            End If
         End If
     End If
     
     ' If we aren't doing the current database, then prompt user to find a folder
     ' with source files to use for the build.
-    DoCmd.Hourglass False
     If strFolder = vbNullString Then
     
         ' Show a folder picker to select the file with source code.
         With Application.FileDialog(msoFileDialogFolderPicker)
             .AllowMultiSelect = False
             .ButtonName = "Select Source Files Folder"
-            .InitialFileName = Options.GetExportFolder
+            '.InitialFileName = Options.GetExportFolder
             .Title = "Select Source Folder"
             .Show
             If .SelectedItems.Count > 0 Then
@@ -1767,13 +1862,15 @@ Private Sub cmdBuild_Click()
                 Else
                     MsgBox2 "Source files not found", "Required source files were not found in this folder.", _
                         "You selected: " & .SelectedItems(1), vbExclamation
+                    DoCmd.Hourglass False
+                    Exit Sub
                 End If
             End If
         End With
     End If
 
     ' Build using selected folder
-    Build strFolder
+    Build strFolder, chkFullBuild
     
 End Sub
 
@@ -1812,14 +1909,17 @@ End Sub
 ' Purpose   : Finish the build process
 '---------------------------------------------------------------------------------------
 '
-Public Sub FinishBuild()
+Public Sub FinishBuild(blnFullBuild As Boolean) 'Optional strType As String = "Build")
 
+    Dim strType As String
+    
     ' Turn on scroll bars in case the user wants to scroll back through the log.
     txtLog.ScrollBars = 2
     
     ' Display final UI messages.
     Log.Flush
-    SetStatusText "Finished", "Build Complete", "Additional details can be found in the project build log file.<br><br>You may now close this window."
+    strType = IIf(blnFullBuild, "Build", "Merge")
+    SetStatusText "Finished", strType & " Complete", "Additional details can be found in the project " & LCase(strType) & " log file.<br><br>You may now close this window."
     lblOpenLogFile.Visible = (Log.LogFilePath <> vbNullString)
     
 End Sub
@@ -1846,7 +1946,7 @@ End Sub
 ' Purpose   : Export source code from current database
 '---------------------------------------------------------------------------------------
 '
-Public Sub cmdExport_Click()
+Private Sub cmdExport_Click()
     
     cmdClose.SetFocus
     HideActionButtons
@@ -1863,7 +1963,7 @@ Public Sub cmdExport_Click()
     SetStatusText "Running...", "Exporting source code", "A summary of the export progress can be seen on this screen, and additional details are included in the log file."
     
     ' Export the source code
-    modImportExport.ExportSource
+    modImportExport.ExportSource chkFullExport
     ' Turn on scroll bars in case the user wants to scroll back through the log.
     txtLog.ScrollBars = 2
     Log.Flush
@@ -1883,7 +1983,9 @@ End Sub
 '
 Private Sub HideActionButtons()
     cmdExport.Visible = False
+    chkFullExport.Visible = False
     cmdBuild.Visible = False
+    chkFullBuild.Visible = False
     cmdOptions.Visible = False
     cmdHelp.Visible = False
 End Sub
@@ -1909,6 +2011,8 @@ End Sub
 '---------------------------------------------------------------------------------------
 '
 Private Sub cmdOptions_Click()
+    ' Force reload of options from current project before opening the form.
+    Set Options = Nothing
     DoCmd.OpenForm "frmVCSOptions"
 End Sub
 
@@ -1921,13 +2025,67 @@ End Sub
 '           : is instant when the form is opened.
 '---------------------------------------------------------------------------------------
 '
-Private Sub Form_Load()
+Public Sub Form_Load()
+
+    ' Display version (better performance than bound control)
     lblVersion.Caption = "Version " & GetVCSVersion()
+    
     SetStatusText "Choose Action", "What would you like to do?", _
         "<strong><em>Export</em></strong> source to generate source files from the current database." & _
         "<br><br><strong><em>Import</em></strong> source files to rebuild this database from source."
+    
+    ' Set defaults based on current options.
+    chkFullBuild = True ' Not Options.UseFastSave (Till we finish merge build functionality)
+    chkFullExport = Not Options.UseFastSave
+    
     ' You can only export if you have a database open.
     cmdExport.Enabled = DatabaseOpen
+    chkFullExport.Enabled = DatabaseOpen
+    
+    ' Require full export after options change
+    If DatabaseOpen Then
+        If VCSIndex.OptionsHash <> Options.GetHash Then
+            chkFullExport = True
+            chkFullExport.Enabled = False
+        End If
+    End If
+    
+    ' Run any incomming commands
+    HandleCmd
+    
+End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : HandleCmd
+' Author    : Adam Waller
+' Date      : 2/17/2021
+' Purpose   : Support automation of the form
+'---------------------------------------------------------------------------------------
+'
+Public Sub HandleCmd(Optional ByVal RibbonCmdIn As Long = erlVCSOpen)
+    Select Case RibbonCmdIn
+        Case erlVCSOpen
+            Me.Visible = True
+            'PlaceHolder; do nothing.
+        Case erlVCSOptions
+            'Open Settings
+            Me.Visible = True
+            cmdOptions_Click
+        Case erlExportAllRibbon
+            'Start export, then close if no errors.
+            Me.Visible = True
+            cmdExport_Click
+            If Log.ErrorLevel = eelNoError Then
+                Pause 2
+                cmdClose_Click
+            End If
+        Case Else
+            'default to export and close if no errors.
+            Me.Visible = True
+            cmdExport_Click
+            If Log.ErrorLevel = eelNoError Then cmdClose_Click
+    End Select
 End Sub
 
 

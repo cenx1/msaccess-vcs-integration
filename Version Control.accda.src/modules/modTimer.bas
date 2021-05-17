@@ -1,5 +1,13 @@
-Option Explicit
+'---------------------------------------------------------------------------------------
+' Module    : modTimer
+' Author    : Adam Waller
+' Date      : 12/4/2020
+' Purpose   : API timer functions for callbacks
+'---------------------------------------------------------------------------------------
+Option Compare Database
 Option Private Module
+Option Explicit
+
 
 Private Declare PtrSafe Function SetTimer Lib "user32" (ByVal hwnd As LongPtr, ByVal nIDEvent As LongPtr, ByVal uElapse As Long, ByVal lpTimerFunc As LongPtr) As LongPtr
 Private Declare PtrSafe Function KillTimer Lib "user32" (ByVal hwnd As LongPtr, ByVal nIDEvent As LongPtr) As Long
@@ -42,18 +50,23 @@ Public Sub BuildTimerCallback()
     ' Look up the existing timer to make sure we kill it properly.
     If m_lngBuildTimerID = 0 Then m_lngBuildTimerID = GetSetting(GetCodeVBProject.Name, "Build", "TimerID", 0)
     If m_lngBuildTimerID <> 0 Then
+
         KillTimer 0, m_lngBuildTimerID
         Debug.Print "Killed build timer " & m_lngBuildTimerID
         m_lngBuildTimerID = 0
         SaveSetting GetCodeVBProject.Name, "Build", "TimerID", 0
+
     End If
     
     ' Now, with the timer killed, we can clear the saved value and relaunch the build.
     strFolder = GetSetting(GetCodeVBProject.Name, "Build", "SourceFolder")
     blnHeadless = GetSetting(GetCodeVBProject.Name, "Build", "HeadlessMode")
     SaveSetting GetCodeVBProject.Name, "Build", "SourceFolder", vbNullString
+
     If strFolder <> vbNullString Then
-        Build strFolder, blnHeadless
+
+        Build strFolder, True, blnHeadless
+
     End If
     
 End Sub

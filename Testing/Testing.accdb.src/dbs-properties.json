@@ -1,8 +1,7 @@
-{
+﻿{
   "Info": {
     "Class": "clsDbProperty",
-    "Description": "Database Properties (DAO)",
-    "VCS Version": "3.1.25"
+    "Description": "Database Properties (DAO)"
   },
   "Items": {
     "AccessVersion": {

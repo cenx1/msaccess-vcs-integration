@@ -1,12 +1,11 @@
 {
   "Info": {
     "Class": "clsDbSavedSpec",
-    "Description": "Saved Import/Export Specification",
-    "VCS Version": "3.1.25"
+    "Description": "Saved Import/Export Specification"
   },
   "Items": {
     "Name": "Export-MSysIMEXColumns",
     "Description": "Test table export.",
-    "XML": "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n<ImportExportSpecification Path = \"@{7206d646ad14afc4d2a5164e85737aae216a7c69f010fd878d28ea9a839da04ee25be5cd4f50279a21110ee90ad827dfd8a3f66cf76d}\" xmlns=\"urn:www.microsoft.com/office/access/imexspec\">\n\t<ExportTextPresentation  AccessObject=\"MSysIMEXColumns\" ObjectType=\"Table\" AutoStart=\"true\" Encoding=\"WindowsDefault\" />\n</ImportExportSpecification>"
+    "XML": "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n<ImportExportSpecification Path = \"C:\\Users\\Adam Waller\\Documents\\MSysIMEXColumns.txt\" xmlns=\"urn:www.microsoft.com/office/access/imexspec\">\n\t<ExportTextPresentation  AccessObject=\"MSysIMEXColumns\" ObjectType=\"Table\" AutoStart=\"true\" Encoding=\"WindowsDefault\" />\n</ImportExportSpecification>"
   }
 }

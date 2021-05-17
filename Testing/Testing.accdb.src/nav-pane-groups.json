@@ -1,38 +1,72 @@
-{
+﻿{
   "Info": {
     "Class": "clsDbNavPaneGroup",
     "Description": "Navigation Pane Custom Groups",
-    "VCS Version": "3.1.25"
+    "Export File Format": 1.1
   },
   "Items": {
-    "Groups": [
+    "Categories": [
       {
-        "Name": "Linked Tables",
+        "Name": "My Category",
         "Flags": 0,
-        "Position": 1,
-        "Objects": [
+        "Position": 2,
+        "Groups": [
           {
-            "Name": "tblLinkedAccess",
-            "Type": 6,
+            "Name": "Macros & Reports",
             "Flags": 0,
-            "Icon": 0,
-            "Position": 0
+            "Position": 1,
+            "Objects": [
+              {
+                "Name": "AutoExec",
+                "Type": -32766,
+                "Flags": 0,
+                "Icon": 0,
+                "Position": 0
+              },
+              {
+                "Name": "rptDefaultPrinter",
+                "Type": -32764,
+                "Flags": 0,
+                "Icon": 0,
+                "Position": 1
+              },
+              {
+                "Name": "rptNavigationPaneGroups",
+                "Type": -32764,
+                "Flags": 0,
+                "Icon": 0,
+                "Position": 2
+              }
+            ]
           },
           {
-            "Name": "tblLinkedCSV",
-            "Type": 6,
+            "Name": "My Modules",
             "Flags": 0,
-            "Icon": 0,
+            "Position": 2,
+            "Objects": [
+              {
+                "Name": "basUtility",
+                "Type": -32761,
+                "Flags": 0,
+                "Icon": 0,
+                "Position": 0
+              },
+              {
+                "Name": "Module1",
+                "Type": -32761,
+                "Flags": 0,
+                "Icon": 0,
+                "Position": 1
+              }
+            ]
+          },
+          {
+            "Name": "Unassigned Objects",
+            "Flags": 4,
             "Position": 1,
-            "NameInGroup": "Linked Name"
+            "Objects": [
+            ]
           }
-        ]
-      },
-      {
-        "Name": "Unassigned Objects",
-        "Flags": 4,
-        "Position": 2,
-        "Objects": [
         ]
       }
     ]

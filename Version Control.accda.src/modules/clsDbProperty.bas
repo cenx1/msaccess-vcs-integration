@@ -35,7 +35,6 @@ Private Sub IDbComponent_Export()
     Dim dCollection As Dictionary
     Dim dItem As Dictionary
     Dim varValue As Variant
-    Dim strPath As String
     
     Set dCollection = New Dictionary
     
@@ -45,22 +44,13 @@ Private Sub IDbComponent_Export()
             Case "Connection"
                 ' Connection object for ODBCDirect workspaces. Not needed.
             Case "Last VCS Export", "Last VCS Version"
-                ' Reduce noise by ignoring these values.
-                ' (We already have this information in the header.)
+                ' Legacy properties no longer needed.
             Case Else
                 varValue = prp.Value
                 If prp.Name = "AppIcon" Or prp.Name = "Name" Then
                     If Len(varValue) > 0 Then
                         ' Try to use a relative path
-                        strPath = GetRelativePath(CStr(varValue))
-                        If Left(strPath, 4) = "rel:" Then
-                            varValue = strPath
-                        Else
-                            ' The full path may contain sensitive info. Secure the path but not the file name.
-                            ' (Whether the value is encrypted, removed or left as plain text depends on
-                            '  what is selected in the options.)
-                            varValue = SecurePath(CStr(varValue))
-                        End If
+                        varValue = GetRelativePath(CStr(varValue))
                     End If
                 End If
                 Set dItem = New Dictionary
@@ -71,7 +61,7 @@ Private Sub IDbComponent_Export()
     Next prp
     
     ' Write to file. The order of properties may change, so sort them to keep the order consistent.
-    WriteJsonFile Me, SortDictionaryByKeys(dCollection), IDbComponent_SourceFile, "Database Properties (DAO)"
+    WriteJsonFile TypeName(Me), SortDictionaryByKeys(dCollection), IDbComponent_SourceFile, "Database Properties (DAO)"
     
 End Sub
 
@@ -94,7 +84,14 @@ Private Sub IDbComponent_Import(strFile As String)
     Dim varValue As Variant
     Dim strDecrypted As String
     Dim blnAdd As Boolean
-    
+    Dim varItem As Variant
+    Dim bArray() As Byte
+    Dim i As Long
+    Dim bUpdate As Boolean
+
+    ' Only import files with the correct extension.
+    If Not strFile Like "*.json" Then Exit Sub
+
     Set dbs = CurrentDb
     
     ' Pull a list of the existing properties so we know whether
@@ -117,12 +114,19 @@ Private Sub IDbComponent_Import(strFile As String)
                 Case "Connection", "Name", "Version", "CollatingOrder" ' Can't set these properties
                 Case Else
                     blnAdd = False
-                    varValue = dItems(varKey)("Value")
-                    ' Check for encryption
-                    strDecrypted = Decrypt(CStr(varValue))
-                    If CStr(varValue) <> strDecrypted Then varValue = strDecrypted
-                    ' Check for relative path
-                    If Left$(varValue, 4) = "rel:" Then varValue = GetPathFromRelative(CStr(varValue))
+                    bUpdate = False
+                    ' Check if value is as Collection
+                    If Not TypeOf dItems(varKey)("Value") Is Collection Then
+                        varValue = dItems(varKey)("Value")
+                        ' Check for relative path
+                        If Left$(varValue, 4) = "rel:" Then varValue = GetPathFromRelative(CStr(varValue))
+                    Else
+                        ReDim bArray(0 To dItems(varKey)("Value").Count - 1)
+                        For Each varItem In dItems(varKey)("Value")
+                            bArray(i) = CByte(varItem)
+                            i = i + 1
+                        Next
+                    End If
                     ' Check for existing value
                     If dExisting.Exists(varKey) Then
                         If dItems(varKey)("Type") <> dExisting(varKey)(1) Then
@@ -130,19 +134,55 @@ Private Sub IDbComponent_Import(strFile As String)
                             dbs.Properties.Delete varKey
                             blnAdd = True
                         Else
-                            ' Check the value, and update if different
-                            If varValue <> dExisting(varKey)(0) Then
-                                ' Update value of existing property if different.
-                                dbs.Properties(varKey).Value = varValue
+                            ' Check if value is a Collection
+                            If Not TypeOf dItems(varKey)("Value") Is Collection Then
+                                ' Check the value, and update if different
+                                If varValue <> dExisting(varKey)(0) Then
+                                    ' Update value of existing property if different.
+                                    dbs.Properties(varKey).Value = varValue
+                                End If
+                            Else
+                                ' Check the arrays, and update if different
+                                If (LBound(bArray) <> LBound(dExisting(varKey)(0))) Or (UBound(bArray) <> UBound(dExisting(varKey)(0))) Then
+                                    ' Different size
+                                    bUpdate = True
+                                Else
+                                    ' Same size
+                                    ' Check content
+                                    For i = LBound(bArray) To UBound(bArray)
+                                        If (bArray(i) <> dExisting(varKey)(0)(i)) Then
+                                            bUpdate = True
+                                            Exit For
+                                        End If
+                                    Next
+                                End If
+                                If bUpdate Then
+                                    ' Update value of existing property if different.
+                                    dbs.Properties(varKey).Value = bArray
+                                End If
                             End If
                         End If
                     Else
                         ' Add properties that don't exist.
                         blnAdd = True
                     End If
+                    
+                    ' Can't add a text property with a null value. See issue #126
+                    If dItems(varKey)("Type") = 10 Then
+                        If varValue = vbNullChar Then blnAdd = False
+                    End If
+                    ' Add the property if the flag has been set.
                     If blnAdd Then
-                        ' Create property, then append to collection
-                        Set prp = dbs.CreateProperty(varKey, dItems(varKey)("Type"), varValue)
+                        ' Check if value is a Collection
+                        If Not TypeOf dItems(varKey)("Value") Is Collection Then
+                            ' Create property
+                            Set prp = dbs.CreateProperty(varKey, dItems(varKey)("Type"), varValue)
+                        Else
+                            ' Create property from array
+                            Set prp = dbs.CreateProperty(varKey, dItems(varKey)("Type"), bArray)
+                        End If
+                        
+                        ' Append property to collection
                         dbs.Properties.Append prp
                     End If
             End Select
@@ -153,13 +193,26 @@ End Sub
 
 
 '---------------------------------------------------------------------------------------
+' Procedure : Merge
+' Author    : Adam Waller
+' Date      : 11/21/2020
+' Purpose   : Merge the source file into the existing database, updating or replacing
+'           : any existing object.
+'---------------------------------------------------------------------------------------
+'
+Private Sub IDbComponent_Merge(strFile As String)
+
+End Sub
+
+
+'---------------------------------------------------------------------------------------
 ' Procedure : GetAllFromDB
 ' Author    : Adam Waller
 ' Date      : 4/23/2020
 ' Purpose   : Return a collection of class objects represented by this component type.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_GetAllFromDB() As Collection
+Private Function IDbComponent_GetAllFromDB(Optional blnModifiedOnly As Boolean = False) As Collection
     
     Dim prp As DAO.Property
     Dim cProp As IDbComponent
@@ -187,9 +240,9 @@ End Function
 ' Purpose   : Return a list of file names to import for this component type.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_GetFileList() As Collection
+Private Function IDbComponent_GetFileList(Optional blnModifiedOnly As Boolean = False) As Collection
     Set IDbComponent_GetFileList = New Collection
-    IDbComponent_GetFileList.Add IDbComponent_SourceFile
+    If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_GetFileList.Add IDbComponent_SourceFile
 End Function
 
 
@@ -205,6 +258,19 @@ Private Sub IDbComponent_ClearOrphanedSourceFiles()
     strFile = IDbComponent_BaseFolder & "properties.txt"
     If FSO.FileExists(strFile) Then DeleteFile strFile, True     ' Remove legacy file
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : IsModified
+' Author    : Adam Waller
+' Date      : 11/21/2020
+' Purpose   : Returns true if the object in the database has been modified since
+'           : the last export of the object.
+'---------------------------------------------------------------------------------------
+'
+Public Function IDbComponent_IsModified() As Boolean
+
+End Function
 
 
 '---------------------------------------------------------------------------------------
@@ -245,7 +311,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Property Get IDbComponent_Category() As String
-    IDbComponent_Category = "db properties"
+    IDbComponent_Category = "DB Properties"
 End Property
 
 
@@ -291,8 +357,8 @@ End Property
 ' Purpose   : Return a count of how many items are in this category.
 '---------------------------------------------------------------------------------------
 '
-Private Property Get IDbComponent_Count() As Long
-    IDbComponent_Count = IDbComponent_GetAllFromDB.Count
+Private Property Get IDbComponent_Count(Optional blnModifiedOnly As Boolean = False) As Long
+    IDbComponent_Count = IDbComponent_GetAllFromDB(blnModifiedOnly).Count
 End Property
 
 

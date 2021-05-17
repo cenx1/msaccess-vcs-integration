@@ -46,7 +46,6 @@ Private Sub IDbComponent_Export()
 
     Dim strFile As String
     Dim dItem As Dictionary
-    Dim stm As ADODB.Stream
     
     ' Build header file
     Set dItem = New Dictionary
@@ -55,12 +54,12 @@ Private Sub IDbComponent_Export()
     dItem.Add "Extension", m_Extension
     
     ' Save json file with header details
-    WriteJsonFile Me, dItem, IDbComponent_SourceFile, "Shared Image Gallery Item"
+    WriteJsonFile TypeName(Me), dItem, IDbComponent_SourceFile, "Shared Image Gallery Item"
     
-    ' Save image file
-    strFile = IDbComponent_BaseFolder & FSO.GetBaseName(IDbComponent_SourceFile) & "." & m_Extension
-    Set stm = New ADODB.Stream
-    With stm
+    ' Save image file using extension from embedded file.
+    strFile = IDbComponent_BaseFolder & FSO.GetBaseName(IDbComponent_SourceFile) & "." & FSO.GetExtensionName(m_FileName)
+
+    With New ADODB.Stream
         .Type = adTypeBinary
         .Open
         .Write StripOLEHeader(m_FileData)     ' Binary data
@@ -114,6 +113,9 @@ Private Sub IDbComponent_Import(strFile As String)
     Dim lngIndex As Long
     Dim proj As CurrentProject
     
+    ' Only import files with the correct extension.
+    If Not strFile Like "*.json" Then Exit Sub
+
     ' Read json header file
     Set dFile = ReadJsonFile(strFile)
     If Not dFile Is Nothing Then
@@ -129,7 +131,7 @@ Private Sub IDbComponent_Import(strFile As String)
             End If
             Name strImageFile As strOriginalName
         End If
-        ' Reame image to original name
+        ' Rename image to original name
         ' Import as image, then rename back to image file name that matches json file.
         Set proj = CurrentProject
         With proj
@@ -153,6 +155,19 @@ Private Sub IDbComponent_Import(strFile As String)
             If strOriginalName <> strImageFile Then Name strOriginalName As strImageFile
         End If
     End If
+
+End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : Merge
+' Author    : Adam Waller
+' Date      : 11/21/2020
+' Purpose   : Merge the source file into the existing database, updating or replacing
+'           : any existing object.
+'---------------------------------------------------------------------------------------
+'
+Private Sub IDbComponent_Merge(strFile As String)
 
 End Sub
 
@@ -189,7 +204,7 @@ End Function
 ' Purpose   : Return a collection of class objects represented by this component type.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_GetAllFromDB() As Collection
+Private Function IDbComponent_GetAllFromDB(Optional blnModifiedOnly As Boolean = False) As Collection
 
     Dim cImg As IDbComponent
     Dim rst As DAO.Recordset
@@ -230,7 +245,7 @@ End Function
 ' Purpose   : Return a list of file names to import for this component type.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_GetFileList() As Collection
+Private Function IDbComponent_GetFileList(Optional blnModifiedOnly As Boolean = False) As Collection
     Set IDbComponent_GetFileList = GetFilePathsInFolder(IDbComponent_BaseFolder, "*.json")
 End Function
 
@@ -243,8 +258,21 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Sub IDbComponent_ClearOrphanedSourceFiles()
-    ClearOrphanedSourceFiles Me, "json", "jpg", "jpeg", "jpe", "gif", "png"
+    ClearOrphanedSourceFiles Me, "json", "jpg", "jpeg", "jpe", "gif", "png", "ico"
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : IsModified
+' Author    : Adam Waller
+' Date      : 11/21/2020
+' Purpose   : Returns true if the object in the database has been modified since
+'           : the last export of the object.
+'---------------------------------------------------------------------------------------
+'
+Public Function IDbComponent_IsModified() As Boolean
+
+End Function
 
 
 '---------------------------------------------------------------------------------------
@@ -284,7 +312,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Property Get IDbComponent_Category() As String
-    IDbComponent_Category = "shared images"
+    IDbComponent_Category = "Shared Images"
 End Property
 
 
@@ -295,7 +323,7 @@ End Property
 ' Purpose   : Return the base folder for import/export of this component.
 '---------------------------------------------------------------------------------------
 Private Property Get IDbComponent_BaseFolder() As String
-    IDbComponent_BaseFolder = Options.GetExportFolder & "images\"
+    IDbComponent_BaseFolder = Options.GetExportFolder & "images" & PathSep
 End Property
 
 
@@ -332,8 +360,8 @@ End Property
 ' Purpose   : Return a count of how many items are in this category.
 '---------------------------------------------------------------------------------------
 '
-Private Property Get IDbComponent_Count() As Long
-    IDbComponent_Count = IDbComponent_GetAllFromDB.Count
+Private Property Get IDbComponent_Count(Optional blnModifiedOnly As Boolean = False) As Long
+    IDbComponent_Count = IDbComponent_GetAllFromDB(blnModifiedOnly).Count
 End Property
 
 

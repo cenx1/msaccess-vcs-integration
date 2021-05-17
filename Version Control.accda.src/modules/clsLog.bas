@@ -7,6 +7,12 @@ Option Explicit
 
 Public PadLength As Integer
 Public LogFilePath As String
+Public ErrorLevel As eErrorLevel
+
+' Set this to true when logging an operation such as an export or build
+' then set back to false after writing the log file. This affects
+' how error messages are reported to the user outside of operations.
+Public Active As Boolean
 
 Private Const cstrSpacer As String = "-------------------------------------"
 
@@ -61,7 +67,7 @@ Public Sub Add(strText As String, Optional blnPrint As Boolean = True, Optional 
         ' Remove existing progress indicator if in use.
         If m_blnProgressActive Then
             m_blnProgressActive = False
-            m_Prog.Visible = False
+            m_Prog.Hide
         End If
     
         ' Use bold/green text for completion line.
@@ -109,9 +115,9 @@ Public Sub Flush()
     ' See if the GUI form is loaded.
     Perf.OperationStart "Console Updates"
     If Not m_RichText Is Nothing Then
-        With Form_frmVCSMain.txtLog
+        With m_RichText
             m_blnProgressActive = False
-            If Not m_Prog Is Nothing Then m_Prog.Visible = False
+            If Not m_Prog Is Nothing Then m_Prog.Hide
             ' Set value, not text to avoid errors with large text strings.
             Echo False
             '.SelStart = Len(.Text & vbNullString)
@@ -128,6 +134,58 @@ Public Sub Flush()
     ' Update the display (especially for immediate window)
     DoEvents
     Perf.OperationEnd
+    
+End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : Error
+' Author    : Adam Waller
+' Date      : 12/4/2020
+' Purpose   : Log an error, and update error level if needed. Reads Err object values.
+'           : A critical error will also present a message box with the details.
+'---------------------------------------------------------------------------------------
+'
+Public Sub Error(eLevel As eErrorLevel, strDescription As String, Optional strSource As String)
+
+    Dim strPrefix As String
+    
+    Select Case eLevel
+        Case eelWarning:    strPrefix = "WARNING: "
+        Case eelError:      strPrefix = "ERROR: "
+        Case eelCritical:   strPrefix = "CRITICAL: "
+    End Select
+    
+    ' Build the error message string.
+    With New clsConcat
+        .AppendOnAdd = vbNullString
+        .Add strPrefix, strDescription
+        If strSource <> vbNullString Then .Add " Source: ", strSource
+        If Err Then .Add " Error ", Err.Number, ": ", Err.Description
+        
+        ' Log the error and display if higher than warning.
+        Me.Add .GetStr, eLevel > eelWarning
+        
+        ' See if we are actively logging an operation
+        If Log.Active Then
+            ' Show message box for fatal error.
+            If eLevel = eelCritical Then
+                MsgBox2 "Unable to Continue", .GetStr, _
+                    "Please review the log file for additional details.", vbCritical
+            End If
+        Else
+            ' Show message on any error level when we are not logging to a file.
+            Select Case eLevel
+                Case eelNoError:    ' Do nothing
+                Case eelWarning:    MsgBox2 "Warning", .GetStr, , vbInformation
+                Case eelError:      MsgBox2 "Error", .GetStr, , vbExclamation
+                Case eelCritical:   MsgBox2 "Critical", .GetStr, , vbCritical
+            End Select
+        End If
+    End With
+    
+    ' Update error level if higher.
+    If Me.ErrorLevel < eLevel Then Me.ErrorLevel = eLevel
     
 End Sub
 
@@ -201,6 +259,9 @@ Private Sub Class_Initialize()
     m_blnProgressActive = False
     m_sngLastUpdate = 0
     Me.PadLength = 30
+    Me.ErrorLevel = eelNoError
+    Me.Active = False
+    Me.LogFilePath = vbNullString
 End Sub
 
 
@@ -254,7 +315,6 @@ Public Sub Increment()
     If Not m_blnProgressActive Then
         ' Show the progress bar
         lngProgress = 1
-        m_Prog.Visible = True
         ' Flush any pending output
         With m_RichText
             Echo False

@@ -42,27 +42,25 @@ Private Sub IDbComponent_Export()
     For Each prp In CurrentProject.Properties
         Select Case prp.Name
             Case "Last VCS Export", "Last VCS Version"
-                ' Reduce noise by ignoring these values.
-                ' (We already have this information in the header.)
+                ' Legacy properties no longer needed.
             Case "AppIcon"
                 ' Try to use a relative path
                 strPath = GetRelativePath(CStr(prp.Value))
                 If Left(strPath, 4) = "rel:" Then
                     varValue = strPath
                 Else
-                    ' The full path may contain sensitive info. Encrypt the path but not the file name.
-                    varValue = SecurePath(CStr(varValue))
+                    varValue = CStr(varValue)
                 End If
                 ' ADP projects may have this property
-                dCollection.Add prp.Name, SecurePath(CStr(varValue))
+                dCollection.Add prp.Name, CStr(varValue)
             Case Else
                 dCollection.Add prp.Name, prp.Value
         End Select
     Next prp
 
     ' Write to file. The order of properties may change, so sort them to keep the order consistent.
-    WriteJsonFile Me, SortDictionaryByKeys(dCollection), IDbComponent_SourceFile, "Project Properties (Access)"
-
+    WriteJsonFile TypeName(Me), SortDictionaryByKeys(dCollection), IDbComponent_SourceFile, "Project Properties (Access)"
+    
 End Sub
 
 
@@ -83,6 +81,9 @@ Private Sub IDbComponent_Import(strFile As String)
     Dim varKey As Variant
     Dim varValue As Variant
     
+    ' Only import files with the correct extension.
+    If Not strFile Like "*.json" Then Exit Sub
+
     Set projCurrent = CurrentProject
     
     ' Pull a list of the existing properties so we know whether
@@ -105,7 +106,7 @@ Private Sub IDbComponent_Import(strFile As String)
                 Case "Name", "Connection"
                     ' Skip these properties
                 Case Else
-                    varValue = Decrypt(dItems(varKey))
+                    varValue = dItems(varKey)
                     If Left$(varValue, 4) = "rel:" Then varValue = GetPathFromRelative(CStr(varValue))
                     If dExisting.Exists(varKey) Then
                         If dItems(varKey) <> dExisting(varKey) Then
@@ -124,13 +125,26 @@ End Sub
 
 
 '---------------------------------------------------------------------------------------
+' Procedure : Merge
+' Author    : Adam Waller
+' Date      : 11/21/2020
+' Purpose   : Merge the source file into the existing database, updating or replacing
+'           : any existing object.
+'---------------------------------------------------------------------------------------
+'
+Private Sub IDbComponent_Merge(strFile As String)
+
+End Sub
+
+
+'---------------------------------------------------------------------------------------
 ' Procedure : GetAllFromDB
 ' Author    : Adam Waller
 ' Date      : 4/23/2020
 ' Purpose   : Return a collection of class objects represented by this component type.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_GetAllFromDB() As Collection
+Private Function IDbComponent_GetAllFromDB(Optional blnModifiedOnly As Boolean = False) As Collection
     
     Dim prp As AccessObjectProperty
     Dim cProp As IDbComponent
@@ -158,9 +172,9 @@ End Function
 ' Purpose   : Return a list of file names to import for this component type.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_GetFileList() As Collection
+Private Function IDbComponent_GetFileList(Optional blnModifiedOnly As Boolean = False) As Collection
     Set IDbComponent_GetFileList = New Collection
-    IDbComponent_GetFileList.Add IDbComponent_SourceFile
+    If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_GetFileList.Add IDbComponent_SourceFile
 End Function
 
 
@@ -173,6 +187,19 @@ End Function
 '
 Private Sub IDbComponent_ClearOrphanedSourceFiles()
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : IsModified
+' Author    : Adam Waller
+' Date      : 11/21/2020
+' Purpose   : Returns true if the object in the database has been modified since
+'           : the last export of the object.
+'---------------------------------------------------------------------------------------
+'
+Public Function IDbComponent_IsModified() As Boolean
+
+End Function
 
 
 '---------------------------------------------------------------------------------------
@@ -213,7 +240,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Property Get IDbComponent_Category() As String
-    IDbComponent_Category = "proj properties"
+    IDbComponent_Category = "Proj Properties"
 End Property
 
 
@@ -259,8 +286,8 @@ End Property
 ' Purpose   : Return a count of how many items are in this category.
 '---------------------------------------------------------------------------------------
 '
-Private Property Get IDbComponent_Count() As Long
-    IDbComponent_Count = IDbComponent_GetAllFromDB.Count
+Private Property Get IDbComponent_Count(Optional blnModifiedOnly As Boolean = False) As Long
+    IDbComponent_Count = IDbComponent_GetAllFromDB(blnModifiedOnly).Count
 End Property
 
 

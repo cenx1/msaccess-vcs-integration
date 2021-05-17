@@ -1,4 +1,4 @@
-Version =20
+﻿Version =20
 VersionRequired =20
 Begin Report
     LayoutForPrint = NotDefault
@@ -13,18 +13,13 @@ Begin Report
     Width =11700
     DatasheetFontHeight =11
     ItemSuffix =7
-    DatasheetGridlinesColor =14806254
-    OnNoData ="[Event Procedure]"
+    DatasheetGridlinesColor =15132391
     RecSrcDt = Begin
         0x2df649898e77e540
     End
     RecordSource ="qryNavigationPaneGroups"
     Caption ="qryNavigationPaneGroups"
     DatasheetFontName ="Calibri"
-    PrtMip = Begin
-        0x6801000068010000680100006801000000000000b42d00008601000001000000 ,
-        0x010000006801000000000000a10700000100000001000000
-    End
     FilterOnLoad =0
     FitToPage =1
     DisplayOnSharePointSite =1
@@ -79,7 +74,7 @@ Begin Report
         Begin FormHeader
             KeepTogether = NotDefault
             Height =960
-            BackColor =15849926
+            BackColor =15064278
             Name ="ReportHeader"
             AutoHeight =1
             AlternateBackThemeColorIndex =1
@@ -278,7 +273,3 @@ Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Option Compare Database
 Option Explicit
-
-Private Sub Report_NoData(Cancel As Integer)
-
-End Sub

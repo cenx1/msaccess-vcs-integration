@@ -12,6 +12,7 @@ Attribute VB_Exposed = False
 Option Compare Database
 Option Explicit
 
+Private Const ModuleName As String = "clsDbTheme"
 
 Private m_AllItems As Collection
 Private m_Dbs As DAO.Database
@@ -51,13 +52,19 @@ Private Sub IDbComponent_Export()
     Dim rstAtc As Recordset2
     Dim strSql As String
     
+    If DebugMode Then On Error GoTo 0 Else On Error Resume Next
+
     ' Query theme file details
     strSql = "SELECT [Data] FROM MSysResources WHERE [Name]='" & m_Name & "' AND Extension='" & m_Extension & "'"
     Set m_Dbs = CurrentDb
     Set rst = m_Dbs.OpenRecordset(strSql, dbOpenSnapshot, dbOpenForwardOnly)
     
     ' If we get multiple records back we don't know which to use
-    If rst.RecordCount > 1 Then Err.Raise 42, , "Multiple records in MSysResources table were found that matched name '" & m_Name & "' and extension '" & m_Extension & "' - Compact and repair database and try again."
+    If rst.RecordCount > 1 Then
+        Log.Error eelCritical, "Multiple records in MSysResources table were found that matched this name. " & _
+            "Compact and repair database and try again. Theme Name: " & LCase(m_Name) & "." & m_Extension, ModuleName & ".Export"
+        Exit Sub
+    End If
 
     ' Get full name of theme file. (*.thmx)
     strFile = IDbComponent_SourceFile
@@ -67,7 +74,7 @@ Private Sub IDbComponent_Export()
         Set rstAtc = rst!Data.Value
         If FSO.FileExists(strFile) Then DeleteFile strFile, True
         VerifyPath strFile
-        Perf.OperationStart "Extract Theme"
+        Perf.OperationStart "Export Theme"
         rstAtc!FileData.SaveToFile strFile
         Perf.OperationEnd
         rstAtc.Close
@@ -75,12 +82,15 @@ Private Sub IDbComponent_Export()
     End If
     rst.Close
     Set rst = Nothing
-    
+
+    CatchAny eelError, "Error exporting theme file: " & strFile, ModuleName & ".Export", True, True
+
     ' See if we need to extract the theme source files.
     ' (Only really needed when you are tracking themes customizations.)
     If Options.ExtractThemeFiles Then
+        Perf.OperationStart "Extract Theme"
         ' Extract to folder and delete zip file.
-        strFolder = FSO.GetParentFolderName(strFile) & "\" & FSO.GetBaseName(strFile)
+        strFolder = FSO.BuildPath(FSO.GetParentFolderName(strFile), FSO.GetBaseName(strFile))
         If FSO.FolderExists(strFolder) Then FSO.DeleteFolder strFolder, True
         DoEvents ' Make sure the folder is deleted before we recreate it.
         ' Rename to zip file before extracting
@@ -89,6 +99,8 @@ Private Sub IDbComponent_Export()
         ExtractFromZip strZip, strFolder, False
         ' Rather than holding up the export while we extract the file,
         ' use a cleanup sub to do this after the export.
+        Perf.OperationEnd
+        CatchAny eelError, "Error extracting theme. Folder: " & strFolder, ModuleName & ".Export", True, True
     End If
 
 End Sub
@@ -112,12 +124,14 @@ Private Sub IDbComponent_Import(strFile As String)
     Dim strSql As String
     Dim blnIsFolder As Boolean
     
+    If DebugMode Then On Error GoTo 0 Else On Error Resume Next
+    
     ' Are we dealing with a folder, or a file?
     blnIsFolder = (Right$(strFile, 5) <> ".thmx")
 
     If blnIsFolder Then
         ' We need to compress this folder back into a zipped theme file.
-        ' Build zip file name
+        ' Build zip file name; if it's a folder, just add the extension.
         strZip = strFile & ".zip"
         ' Get theme name
         strThemeName = GetObjectNameFromFileName(FSO.GetBaseName(strZip))
@@ -137,6 +151,9 @@ Private Sub IDbComponent_Import(strFile As String)
         ' Theme file is ready to go
         strThemeFile = strFile
     End If
+
+    ' Log any errors encountered.
+    CatchAny eelError, "Error getting theme file. File: " & strThemeFile & ", IsFolder: " & blnIsFolder, ModuleName & ".Import", True, True
 
     ' Create/edit record in resources table.
     strThemeName = GetObjectNameFromFileName(FSO.GetBaseName(strFile))
@@ -179,9 +196,25 @@ Private Sub IDbComponent_Import(strFile As String)
     ' Remove compressed theme file if we are using a folder.
     If blnIsFolder Then DeleteFile strThemeFile, True
     
+    ' Log any errors
+    CatchAny eelError, "Error importing theme. File: " & strThemeFile & ", IsFolder: " & blnIsFolder, ModuleName & ".Import", True, True
+
     ' Clear object (Important with DAO/ADO)
     Set rstAttachment = Nothing
     Set rstResources = Nothing
+
+End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : Merge
+' Author    : Adam Waller
+' Date      : 11/21/2020
+' Purpose   : Merge the source file into the existing database, updating or replacing
+'           : any existing object.
+'---------------------------------------------------------------------------------------
+'
+Private Sub IDbComponent_Merge(strFile As String)
 
 End Sub
 
@@ -193,7 +226,7 @@ End Sub
 ' Purpose   : Return a collection of class objects represented by this component type.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_GetAllFromDB() As Collection
+Private Function IDbComponent_GetAllFromDB(Optional blnModifiedOnly As Boolean = False) As Collection
     
     Dim cTheme As IDbComponent
     Dim rst As DAO.Recordset
@@ -274,7 +307,7 @@ End Function
 ' Purpose   : Return a list of file names to import for this component type.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_GetFileList() As Collection
+Private Function IDbComponent_GetFileList(Optional blnModifiedOnly As Boolean = False) As Collection
     ' Get list of folders (extracted files) as well as zip files.
     Set IDbComponent_GetFileList = GetSubfolderPaths(IDbComponent_BaseFolder)
     MergeCollection IDbComponent_GetFileList, GetFilePathsInFolder(IDbComponent_BaseFolder, "*.thmx")
@@ -292,6 +325,19 @@ Private Sub IDbComponent_ClearOrphanedSourceFiles()
     ClearOrphanedSourceFolders Me
     ClearOrphanedSourceFiles Me, "thmx"
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : IsModified
+' Author    : Adam Waller
+' Date      : 11/21/2020
+' Purpose   : Returns true if the object in the database has been modified since
+'           : the last export of the object.
+'---------------------------------------------------------------------------------------
+'
+Public Function IDbComponent_IsModified() As Boolean
+
+End Function
 
 
 '---------------------------------------------------------------------------------------
@@ -332,7 +378,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Property Get IDbComponent_Category() As String
-    IDbComponent_Category = "themes"
+    IDbComponent_Category = "Themes"
 End Property
 
 
@@ -343,7 +389,7 @@ End Property
 ' Purpose   : Return the base folder for import/export of this component.
 '---------------------------------------------------------------------------------------
 Private Property Get IDbComponent_BaseFolder() As String
-    IDbComponent_BaseFolder = Options.GetExportFolder & "themes\"
+    IDbComponent_BaseFolder = Options.GetExportFolder & "themes" & PathSep
 End Property
 
 
@@ -379,8 +425,8 @@ End Property
 ' Purpose   : Return a count of how many items are in this category.
 '---------------------------------------------------------------------------------------
 '
-Private Property Get IDbComponent_Count() As Long
-    IDbComponent_Count = IDbComponent_GetAllFromDB.Count
+Private Property Get IDbComponent_Count(Optional blnModifiedOnly As Boolean = False) As Long
+    IDbComponent_Count = IDbComponent_GetAllFromDB(blnModifiedOnly).Count
 End Property
 
 

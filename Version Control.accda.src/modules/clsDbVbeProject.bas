@@ -12,6 +12,8 @@ Attribute VB_Exposed = False
 Option Compare Database
 Option Explicit
 
+Private Const ModuleName As String = "clsDbVbeProject"
+
 Private m_Project As VBIDE.VBProject
 Private m_AllItems As Collection
 
@@ -33,21 +35,13 @@ Private Sub IDbComponent_Export()
 
     Dim dProject As Dictionary
     
-    ' Read project properties
-    Set dProject = New Dictionary
-    With dProject
-        .Add "Name", m_Project.Name
-        .Add "Description", m_Project.Description
-        .Add "FileName", GetRelativePath(m_Project.FileName)
-        .Add "HelpFile", m_Project.HelpFile
-        .Add "HelpContextId", m_Project.HelpContextId
-        .Add "Mode", m_Project.Mode
-        .Add "Protection", m_Project.Protection
-        .Add "Type", m_Project.Type
-    End With
+    Set dProject = GetDictionary
     
     ' Save in JSON format.
-    WriteJsonFile Me, dProject, IDbComponent_SourceFile, "VBE Project"
+    WriteJsonFile TypeName(Me), dProject, IDbComponent_SourceFile, "VBE Project"
+    
+    ' Save to index
+    VCSIndex.Update Me, eatExport, GetDictionaryHash(dProject)
     
 End Sub
 
@@ -62,34 +56,81 @@ End Sub
 Private Sub IDbComponent_Import(strFile As String)
 
     Dim dProject As Dictionary
-    Dim HelpID As Variant
+    Dim strValue As String
     
+    ' Only import files with the correct extension.
+    If Not strFile Like "*.json" Then Exit Sub
+
     ' Update project properties
     Set dProject = ReadJsonFile(strFile)
-    With GetVBProjectForCurrentDB
+    Set m_Project = GetVBProjectForCurrentDB
+    With m_Project
         .Name = dNZ(dProject, "Items\Name")
         .Description = dNZ(dProject, "Items\Description")
         
         ' Setting the HelpContextId can throw random automation errors.
         ' The setting does change despite the error.
-        HelpID = dNZ(dProject, "Items\HelpContextId")
-        On Error Resume Next
-        .HelpContextId = dNZ(dProject, "Items\HelpContextId")
-        If Err.Number <> 0 Then
-            ' If we failed to set the ID then it was a real error, throw it
-            If .HelpContextId <> HelpID Then Err.Raise Err.Number, , Err.Description
-            Err.Clear
-        End If
-        On Error GoTo 0
-        
-        .HelpFile = dNZ(dProject, "Items\HelpFile")
+        strValue = dNZ(dProject, "Items\HelpContextId")
+        If DebugMode Then On Error Resume Next Else On Error Resume Next
+        .HelpContextId = strValue
+        ' If we failed to set the ID then it was a real error, throw it
+        If .HelpContextId <> strValue Then CatchAny eelError, "Failed to set help context"
+        strValue = dNZ(dProject, "Items\HelpFile")
+        .HelpFile = strValue
+        If .HelpFile <> strValue Then CatchAny eelError, "Failed to set help file"
         ' // Read-only properties
         '.FileName = dNZ(dProject, "Items\FileName")
         '.Mode = dNZ(dProject, "Items\Mode")
         '.Protection = dNZ(dProject, "Items\Protection")
         '.Type = dNZ(dProject, "Items\Type")
     End With
+    
+    CatchAny eelError, "Importing VBE Project", ModuleName & ".Import"
+    
+    ' Save to index
+    VCSIndex.Update Me, eatImport, GetDictionaryHash(GetDictionary)
 
+End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetDictionary
+' Author    : Adam Waller
+' Date      : 12/1/2020
+' Purpose   : Return a dictionary object of project properties.
+'---------------------------------------------------------------------------------------
+'
+Private Function GetDictionary() As Dictionary
+
+    ' Make sure we have a reference to the VB project
+    If m_Project Is Nothing Then Set m_Project = GetVBProjectForCurrentDB
+    
+    ' Read project properties
+    Set GetDictionary = New Dictionary
+    With GetDictionary
+        .Add "Name", m_Project.Name
+        .Add "Description", m_Project.Description
+        .Add "FileName", GetRelativePath(m_Project.FileName)
+        .Add "HelpFile", m_Project.HelpFile
+        .Add "HelpContextId", m_Project.HelpContextId
+        .Add "Mode", m_Project.Mode
+        .Add "Protection", m_Project.Protection
+        .Add "Type", m_Project.Type
+    End With
+    
+End Function
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : Merge
+' Author    : Adam Waller
+' Date      : 11/21/2020
+' Purpose   : Merge the source file into the existing database, updating or replacing
+'           : any existing object.
+'---------------------------------------------------------------------------------------
+'
+Private Sub IDbComponent_Merge(strFile As String)
+    IDbComponent_Import strFile
 End Sub
 
 
@@ -100,7 +141,7 @@ End Sub
 ' Purpose   : Return a collection of class objects represented by this component type.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_GetAllFromDB() As Collection
+Private Function IDbComponent_GetAllFromDB(Optional blnModifiedOnly As Boolean = False) As Collection
     
     Dim cProj As IDbComponent
 
@@ -127,9 +168,9 @@ End Function
 ' Purpose   : Return a list of file names to import for this component type.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_GetFileList() As Collection
+Private Function IDbComponent_GetFileList(Optional blnModifiedOnly As Boolean = False) As Collection
     Set IDbComponent_GetFileList = New Collection
-    IDbComponent_GetFileList.Add IDbComponent_SourceFile
+    If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_GetFileList.Add IDbComponent_SourceFile
 End Function
 
 
@@ -142,6 +183,19 @@ End Function
 '
 Private Sub IDbComponent_ClearOrphanedSourceFiles()
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : IsModified
+' Author    : Adam Waller
+' Date      : 11/21/2020
+' Purpose   : Returns true if the object in the database has been modified since
+'           : the last export of the object.
+'---------------------------------------------------------------------------------------
+'
+Public Function IDbComponent_IsModified() As Boolean
+
+End Function
 
 
 '---------------------------------------------------------------------------------------
@@ -181,7 +235,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Property Get IDbComponent_Category() As String
-    IDbComponent_Category = "VB project"
+    IDbComponent_Category = "VB Project"
 End Property
 
 
@@ -227,7 +281,7 @@ End Property
 ' Purpose   : Return a count of how many items are in this category.
 '---------------------------------------------------------------------------------------
 '
-Private Property Get IDbComponent_Count() As Long
+Private Property Get IDbComponent_Count(Optional blnModifiedOnly As Boolean = False) As Long
     IDbComponent_Count = 1
 End Property
 

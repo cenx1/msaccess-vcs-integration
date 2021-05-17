@@ -1,4 +1,4 @@
-Option Compare Database
+ï»¿Option Compare Database
 Option Explicit
 Option Private Module
 
@@ -39,7 +39,7 @@ Public Sub TestUCS2toUTF8RoundTrip()
     
     'Arrange:
     Dim queryName As String
-    queryName = "Temp_Test_Query_Delete_Me_Æ_ø_Å"
+    queryName = "Temp_Test_Query_Delete_Me_Ã†_Ã¸_Ã…"
     Dim tempFileName As String
     tempFileName = GetTempFile()
     
@@ -53,7 +53,7 @@ Public Sub TestUCS2toUTF8RoundTrip()
     UTFtoUCS = tempFileName & "UTF-8toUCS-2"
     
     ' Use temporary query to export example file
-    CurrentDb.CreateQueryDef queryName, "SELECT * FROM TEST WHERE TESTING='ÆØÅ'"
+    CurrentDb.CreateQueryDef queryName, "SELECT * FROM TEST WHERE TESTING='Ã†Ã˜Ã…'"
     Application.SaveAsText acQuery, queryName, tempFileName
     CurrentDb.QueryDefs.Delete queryName
         
@@ -106,14 +106,14 @@ Private Sub TestParseSpecialCharsInJson()
         
     Set FSO = CreateObject("Scripting.FileSystemObject")
     With FSO.CreateTextFile(strPath, True)
-        .WriteLine "{""Test"":""ÆØÅ are special?""}"
+        .WriteLine "{""Test"":""Ã†Ã˜Ã… are special?""}"
         .Close
     End With
     
     Debug.Print strPath
     
     'Act:
-    Set dict = modFunctions.ReadJsonFile(strPath)
+    Set dict = modFileAccess.ReadJsonFile(strPath)
     
     'Assert:
     If dict Is Nothing Then
@@ -157,44 +157,42 @@ TestFail:
     Assert.Fail "Test raised an error: #" & Err.Number & " - " & Err.Description
 End Sub
 
-'@TestMethod("Encryption")
-Private Sub TestSecureBetween()
-    On Error GoTo TestFail
-    
-    'Arrange:
-    Dim expNonEncrypted As String
-    Dim actnonEncrypted As String
-    Dim expRemove As String
-    Dim actRemove As String
-    Dim expEncrypted As String
-    Dim actEncrypted As String
-    
-    expNonEncrypted = "<firsttag>this should be not be encrypted</firsttag>"
-    expRemove = "<firsttag></firsttag>"
-    expEncrypted = "<firsttag>@{*"
-    
-    'Act:
-    Options.Security = esNone
-    actnonEncrypted = SecureBetween(expNonEncrypted, "<firsttag>", "</firsttag>")
-    
-    Options.Security = esRemove
-    actRemove = SecureBetween(expNonEncrypted, "<firsttag>", "</firsttag>")
-    
-    Options.Security = esEncrypt
-    actEncrypted = SecureBetween(expNonEncrypted, "<firsttag>", "</firsttag>")
-    
-    Debug.Print actnonEncrypted
-    Debug.Print actRemove
-    Debug.Print actEncrypted
-    
-    'Assert:
-    Assert.AreEqual expNonEncrypted, actnonEncrypted
-    Assert.AreEqual expRemove, actRemove
-    Assert.IsTrue actEncrypted Like expEncrypted
-    
 
-TestExit:
-    Exit Sub
-TestFail:
-    Assert.Fail "Test raised an error: #" & Err.Number & " - " & Err.Description
+'@TestMethod("QuickSort")
+Private Sub TestQuickSort()
+    
+    Dim arr() As String
+    Dim result As String
+    
+    arr = Split("u i a")
+    
+    QuickSort arr
+    result = Join(arr, " ")
+    Assert.AreEqual result, "a i u"
+    
+End Sub
+
+
+'@TestMethod("Concat")
+Private Sub TestConcat()
+    
+    With New clsConcat
+        .SelfTest
+    End With
+    
+End Sub
+
+
+'@TestMethod("SanitizeConnectionString")
+Private Sub TestSanitizeConnectionString()
+
+    ' Verify semicolon placement matches original
+    Debug.Assert SanitizeConnectionString(";test;test;") = ";test;test;"
+    Debug.Assert SanitizeConnectionString("test;test") = "test;test"
+    Debug.Assert SanitizeConnectionString(";test;test") = ";test;test"
+    Debug.Assert SanitizeConnectionString("test;test;") = "test;test;"
+    Debug.Assert SanitizeConnectionString("test;test;") = "test;test;"
+    Debug.Assert SanitizeConnectionString("test") = "test"
+    Debug.Assert SanitizeConnectionString(vbNullString) = vbNullString
+
 End Sub

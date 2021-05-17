@@ -8,10 +8,9 @@ Attribute VB_Exposed = False
 ' Date      : 5/15/2020
 ' Purpose   : Helper class to handle the parsing of saved print settings.
 '---------------------------------------------------------------------------------------
-
 Option Compare Database
 Option Explicit
-
+Private Const ModuleName As String = "clsDevMode"
 
 ' See the following links for additional technical details regarding the DEVMODE strcture:
 ' https://docs.microsoft.com/en-us/office/vba/api/access.report.prtdevmode
@@ -21,6 +20,13 @@ Option Explicit
 
 ' Constant to convert tenths of millimeters to inches for human readability
 Private Const TEN_MIL As Double = 0.00393701
+
+' API constants for reading printer properties
+' These may not be needed any longer but are kept here for referencing.
+'Private Const READ_CONTROL = &H20000
+'Private Const PRINTER_ACCESS_USE = &H8
+'Private Const GENERIC_READ = &H80000000
+Private Const DM_OUT_BUFFER = 2
 
 ' DevMode for printer details
 Private Type tDevModeBuffer
@@ -107,12 +113,12 @@ Private Type PRINTER_DEFAULTS
    DesiredAccess As Long
 End Type
 
-Private Declare PtrSafe Function OpenPrinterA Lib "winspool.drv" (ByVal pPrinterName As String, ByRef phPrinter As LongPtr, pDefault As Any) As Long
+Private Declare PtrSafe Function OpenPrinter Lib "winspool.drv" Alias "OpenPrinterA" _
+    (ByVal pPrinterName As String, phPrinter As LongPtr, pDefault As Any) As Long
 Private Declare PtrSafe Function ClosePrinter Lib "winspool.drv" (ByVal hPrinter As LongPtr) As Long
 Private Declare PtrSafe Function DocumentProperties Lib "winspool.drv" Alias "DocumentPropertiesA" _
     (ByVal hwnd As Long, ByVal hPrinter As LongPtr, ByVal pDeviceName As String, _
-    ByVal pDevModeOutput As LongPtr, ByVal pDevModeInput As Long, ByVal fMode As Long) As Long
-
+    ByVal pDevModeOutput As LongPtr, ByVal pDevModeInput As LongPtr, ByVal fMode As Long) As Long
 
 ' Enum for types that can be expanded to friendly
 ' values for storing in version control.
@@ -223,6 +229,8 @@ Public Sub LoadFromExportFile(strFile As String)
     Dim udtDevModeBuffer As tDevModeBuffer
     Dim udtDevNamesBuffer As tDevNamesBuffer
     
+    If DebugMode Then On Error GoTo 0 Else On Error Resume Next
+
     ' Blocks: 1=Mip, 2=DevMode, 3=DevNames
 
     ' Clear existing structures and create block classes.
@@ -270,7 +278,7 @@ Public Sub LoadFromExportFile(strFile As String)
             End If
         End If
     Next lngLine
-
+    
     ' Convert hex block data to string
     strChar = "&h00"
     For intBlock = 1 To 3
@@ -280,7 +288,7 @@ Public Sub LoadFromExportFile(strFile As String)
             strHex = cBlock(intBlock).GetStr
             Set cBuffer(intBlock) = New clsConcat
             ' Each two hex characters represent one bit
-            ReDim bteBuffer(0 To (Len(strHex) / 2) - 1)
+            ReDim bteBuffer(0 To (Len(strHex) / 2) + 1)
             ' Loop through each set of 2 characters to get bytes
             For lngChar = 1 To Len(strHex) Step 2
                 ' Apply two characters to buffer. (Faster than concatenating strings)
@@ -302,7 +310,10 @@ Public Sub LoadFromExportFile(strFile As String)
         End If
     Next intBlock
     Perf.OperationEnd
-    
+
+    CatchAny eelError, "Error loading printer settings from file: " & strFile, _
+        ModuleName & ".LoadFromExportFile", True, True
+
 End Sub
 
 
@@ -331,53 +342,65 @@ End Sub
 '
 Public Sub LoadFromPrinter(strPrinter As String)
 
-    ' API constants for reading printer properties
-    Const READ_CONTROL = &H20000
-    Const DM_OUT_BUFFER = 2
-
-    Dim lngPrinter As LongPtr
+    Dim hPrinter As LongPtr
+    Dim udtDefaults As PRINTER_DEFAULTS
     Dim lngReturn As Long
     Dim strBuffer As String
     Dim udtBuffer As tDevModeBuffer
     Dim objPrinter As Access.Printer
-    
+
+    If DebugMode Then On Error GoTo 0 Else On Error Resume Next
+
     ' Clear our existing devmode structures
     ClearStructures
-        
-    lngReturn = OpenPrinterA(strPrinter, lngPrinter, 0)
-    If lngReturn <> 0 And lngPrinter <> 0 Then
-        
-        ' Check size of DevMode structure to make sure it fits in our buffer.
-        lngReturn = DocumentProperties(0, lngPrinter, strPrinter, 0, 0, 0)
-        If lngReturn > 0 Then
+    
+    ' Open a handle to read the default printer
+    lngReturn = OpenPrinter(strPrinter, hPrinter, ByVal 0&)
 
+    CatchAny eelError, "Error getting printer pointer " & strPrinter, ModuleName & ".LoadFromPrinter", True, True
+    If lngReturn <> 0 And hPrinter <> 0 Then
+
+        ' Check size of DevMode structure to make sure it fits in our buffer.
+        lngReturn = DocumentProperties(0, hPrinter, strPrinter, 0, 0, 0)
+        If lngReturn > 0 Then
             ' Read the devmode structure
             strBuffer = NullPad(lngReturn + 100)
-            lngReturn = DocumentProperties(0, lngPrinter, strPrinter, StrPtr(strBuffer), 0, DM_OUT_BUFFER)
-            If lngReturn > 0 Then
+            lngReturn = DocumentProperties(0, hPrinter, strPrinter, StrPtr(strBuffer), 0, DM_OUT_BUFFER)
             
+            If lngReturn > 0 Then
                 ' Load into DevMode type
                 udtBuffer.strBuffer = strBuffer
                 LSet m_tDevMode = udtBuffer
             
             End If
+        Else
+            Log.Error eelWarning, "There has been an error with loading DevMode structure. lngReturn:'" & lngReturn & "'", _
+                ModuleName & ".LoadFromPrinter"
         End If
     End If
-    
+
+    CatchAny eelError, "Error getting printer devMode " & strPrinter, ModuleName & ".LoadFromPrinter", True, True
     ' Close printer handle
-    If lngPrinter <> 0 Then ClosePrinter lngPrinter
+    If hPrinter <> 0 Then ClosePrinter hPrinter
     
     ' Attempt to load the printer object
     Set objPrinter = GetPrinterByName(strPrinter)
+
     If objPrinter Is Nothing Then
-        Log.Add "WARNING: Could not find printer '" & strPrinter & "' on this system."
+        Log.Error eelWarning, "Could not find printer '" & strPrinter & "' on this system.", _
+            ModuleName & ".LoadFromPrinter"
     Else
         ' Load in the DevNames structure
+        If Options.ShowDebug Then Log.Add "Loading Printer info for: '" & strPrinter & "'."
+        
         SetDevNames objPrinter
         ' Load in the margin defaults
         SetMipFromPrinter objPrinter
     End If
-    
+
+    CatchAny eelError, "Error with printer devMode " & strPrinter, _
+        ModuleName & ".LoadFromPrinter", True, True
+
 End Sub
 
 
@@ -466,6 +489,18 @@ End Function
 Private Function MipHasData() As Boolean
     ' Item layout should either be 1953 or 1954
     MipHasData = (m_tMip.rItemLayout > 0)
+End Function
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : HasData
+' Author    : Adam Waller
+' Date      : 1/14/2021
+' Purpose   : Returns true if we have data in any of the three structures.
+'---------------------------------------------------------------------------------------
+'
+Public Function HasData() As Boolean
+    HasData = (DevModeHasData Or DevNamesHasData Or MipHasData)
 End Function
 
 
@@ -615,8 +650,8 @@ Private Function MipToDictionary() As Dictionary
         .Add "ColumnSpacing", GetInch(cMip.yColumnSpacing)
         .Add "RowSpacing", GetInch(cMip.xRowSpacing)
         .Add "ItemLayout", GetEnum(epeColumnLayout, cMip.rItemLayout)
-        '.Add "FastPrint", cMip.fFastPrint  ' Reserved
-        '.Add "Datasheet", cMip.fDatasheet  ' Reserved
+        .Add "FastPrint", cMip.fFastPrint  ' Reserved
+        .Add "Datasheet", cMip.fDatasheet  ' Reserved
     End With
 
 End Function
@@ -725,13 +760,16 @@ Public Sub SetPrinterOptions(objFormOrReport As Object, dSettings As Dictionary)
     Dim strDevModeExtra As String
     Dim tBuffer As tDevModeBuffer
     
+    If DebugMode Then On Error GoTo 0 Else On Error Resume Next
+
     ' Make sure we are using the correct object type
     If TypeOf objFormOrReport Is Access.Report Then
         intType = acReport
     ElseIf TypeOf objFormOrReport Is Access.Form Then
         intType = acForm
     Else
-        MsgBox "Can only set printer options for a form or report object", vbExclamation
+        Log.Error eelCritical, "Can only set printer options for a form or report object: " & _
+            objFormOrReport.Name, ModuleName & ".SetPrinterOptions"
         Exit Sub
     End If
     
@@ -739,7 +777,8 @@ Public Sub SetPrinterOptions(objFormOrReport As Object, dSettings As Dictionary)
     If dSettings.Exists("DeviceName") Then
         Set oPrinter = GetPrinterByName(dSettings("DeviceName"))
         If oPrinter Is Nothing Then
-            Log.Add "WARNING: Printer " & dSettings("DeviceName") & " not found for " & objFormOrReport.Name
+            Log.Error eelWarning, "Printer " & dSettings("DeviceName") & " not found for " & objFormOrReport.Name, _
+                ModuleName & ":SetPrinterOptions"
             Exit Sub
         End If
         ' Set as printer for this report or form.
@@ -823,7 +862,8 @@ Public Sub SetPrinterOptions(objFormOrReport As Object, dSettings As Dictionary)
     With objFormOrReport
         .Caption = .Caption
     End With
-
+    CatchAny eelError, "Error setting print settings for: " & objFormOrReport.Name, _
+        ModuleName & ".SetPrinterOptions", True, True
 End Sub
 
 
@@ -845,6 +885,8 @@ Public Sub ApplySettings(dSettings As Dictionary)
     Dim blnSetDevMode As Boolean
     Dim dItems As Dictionary
     Dim strPrinter As String
+
+    If DebugMode Then On Error GoTo 0 Else On Error Resume Next
     
     ' Set the properties in the DevNames structure.
     ' Note that this simply sets the printer to one with a matching name. It doesn't try to reconstruct
@@ -864,8 +906,8 @@ Public Sub ApplySettings(dSettings As Dictionary)
     End If
 
     ' Set the properties in the DevMode structure.
-    With m_tDevMode
-        If dSettings.Exists("Printer") Then
+    If IsObject(dSettings("Printer")) Then
+        With m_tDevMode
             Set dItems = dSettings("Printer")
             For Each varKey In dItems.Keys
                 Select Case varKey
@@ -913,12 +955,12 @@ Public Sub ApplySettings(dSettings As Dictionary)
                         End If
                 End Select
             Next varKey
-        End If
-    End With
+        End With
+    End If
     
     ' Set the printer margins in the MIP structure
-    With m_tMip
-        If dSettings.Exists("Margins") Then
+    If IsObject(dSettings("Margins")) Then
+        With m_tMip
             Set dItems = dSettings("Margins")
             For Each varKey In dItems.Keys
                 Select Case varKey
@@ -933,7 +975,9 @@ Public Sub ApplySettings(dSettings As Dictionary)
                     Case "ColumnSpacing": .yColumnSpacing = GetTwips(dItems(varKey))
                     Case "RowSpacing": .xRowSpacing = GetTwips(dItems(varKey))
                     Case "ItemLayout": .rItemLayout = GetEnum(epeColumnLayout, dItems(varKey))
-                    
+                    Case "FastPrint": .fFastPrint = Abs(CBool(dItems(varKey))) 'These are quite likely unneded; they do not appear to have an effect on the file creation/export.
+                    Case "Datasheet": .fDatasheet = Abs(CBool(dItems(varKey))) 'These are quite likely unneded; they do not appear to have an effect on the file creation/export.
+
                     ' Special handling for paper size
                     Case "DefaultSize": .fDefaultSize = Abs(dItems(varKey))
                     Case "Width":
@@ -949,13 +993,27 @@ Public Sub ApplySettings(dSettings As Dictionary)
                 
                     Case Else
                         ' Could not find that property.
-                        Log.Add "WARNING: Margin property " & CStr(varKey) & " not found."
+                        Log.Error eelWarning, "Margin property " & CStr(varKey) & " not found.", _
+                            ModuleName & ":ApplySettings"
                 End Select
             Next varKey
-        End If
-    End With
-        
+        End With
+    End If
+    CatchAny eelError, "Error applying print settings for: " & strPrinter, _
+        ModuleName & ".ApplySettings", True, True
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetPrintSettingsFileName
+' Author    : Adam Waller
+' Date      : 1/14/2021
+' Purpose   : Return the file name for the print vars json file.
+'---------------------------------------------------------------------------------------
+'
+Public Function GetPrintSettingsFileName(cDbObject As IDbComponent) As String
+    GetPrintSettingsFileName = cDbObject.BaseFolder & GetSafeFileName(cDbObject.Name) & ".json"
+End Function
 
 
 '---------------------------------------------------------------------------------------
@@ -977,13 +1035,16 @@ Public Function AddToExportFile(strFile As String) As String
     Dim blnFound As Boolean
     Dim blnInBlock As Boolean
     
+    If DebugMode Then On Error GoTo 0 Else On Error Resume Next
+
     ' Load data from export file
     strData = ReadFile(strFile)
     varLines = Split(strData, vbCrLf)
 
     ' Use concatenation class for performance reasons.
     With New clsConcat
-    
+        .AppendOnAdd = vbCrLf
+        
         ' Loop through lines in file, searching for location to insert blocks.
         For lngLine = LBound(varLines) To UBound(varLines)
             
@@ -1000,22 +1061,27 @@ Public Function AddToExportFile(strFile As String) As String
                         blnInBlock = True
                     Case "End"
                         ' End of a block section.
-                        If Not blnInBlock Then .Add strLine, vbCrLf
+                        If Not blnInBlock Then .Add strLine
                         blnInBlock = False
                     Case "Begin"
-                        ' Insert our blocks before this line.
-                        .Add GetPrtMipBlock
-                        .Add GetPrtDevModeBlock
-                        .Add GetPrtDevNamesBlock
-                        .Add strLine, vbCrLf
-                        blnFound = True
+                        'Verify indent level
+                        If strLine <> "    Begin" Then
+                            .Add strLine
+                        Else
+                            ' Insert our blocks before this line.
+                            .Add GetPrtMipBlock
+                            .Add GetPrtDevModeBlock
+                            .Add GetPrtDevNamesBlock
+                            .Add strLine
+                            blnFound = True
+                        End If
                     Case Else
                         ' Continue building file contents
-                        .Add strLine, vbCrLf
+                        .Add strLine
                 End Select
             Else
                 ' Already inserted block content.
-                .Add strLine, vbCrLf
+                .Add strLine
             End If
         Next lngLine
     
@@ -1027,7 +1093,8 @@ Public Function AddToExportFile(strFile As String) As String
 
     ' Return path to temp file
     AddToExportFile = strTempFile
-
+    CatchAny eelError, "Error adding to export file: " & strFile, _
+        ModuleName & ".AddToExportFile", True, True
 End Function
 
 
@@ -1414,6 +1481,36 @@ End Function
 
 
 '---------------------------------------------------------------------------------------
+' Procedure : GetHash
+' Author    : Adam Waller
+' Date      : 2/17/2021
+' Purpose   : Returns a hash of the devmode structure *without* the two reserved
+'           : settings of FastPrint and Datasheet. This is useful in comparing to
+'           : see if the print settings match the default printer settings.
+'---------------------------------------------------------------------------------------
+'
+Public Function GetHash()
+
+    Dim dSettings As Dictionary
+    
+    Set dSettings = Me.GetDictionary
+    
+    ' Remove the reserved settings, which are Access specific and may not match the
+    ' settings retrieved from the default printer.
+    If dSettings.Exists("Margins") Then
+        With dSettings("Margins")
+            If .Exists("FastPrint") Then .Remove "FastPrint"
+            If .Exists("Datasheet") Then .Remove "Datasheet"
+        End With
+    End If
+    
+    'Debug.Print ConvertToJson(dSettings, "  ")
+    GetHash = GetDictionaryHash(dSettings)
+    
+End Function
+
+
+'---------------------------------------------------------------------------------------
 ' Procedure : GetPrtDevModeBlock
 ' Author    : Adam Waller
 ' Date      : 10/27/2020
@@ -1503,7 +1600,7 @@ Private Function GetBlobFromString(strSection As String, strContent As String, O
 
         ' Add section closing
         .Add vbCrLf
-        .Add Space$(intIndent), "End", vbCrLf
+        .Add Space$(intIndent), "End"
         
         ' Return blob string
         GetBlobFromString = .GetStr

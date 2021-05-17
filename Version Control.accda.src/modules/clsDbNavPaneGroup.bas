@@ -12,6 +12,9 @@ Attribute VB_Exposed = False
 Option Compare Database
 Option Explicit
 
+Private Const ModuleName As String = "clsDbNavPaneGroup"
+Private Const FormatVersion As Double = 1.1
+
 Private m_AllItems As Collection
 Private m_dItems As Dictionary
 Private m_Count As Long
@@ -32,7 +35,7 @@ Implements IDbComponent
 '
 Private Sub IDbComponent_Export()
     IDbComponent_GetAllFromDB
-    WriteJsonFile Me, m_dItems, IDbComponent_SourceFile, "Navigation Pane Custom Groups"
+    WriteJsonFile TypeName(Me), m_dItems, IDbComponent_SourceFile, "Navigation Pane Custom Groups", FormatVersion
 End Sub
 
 
@@ -45,48 +48,138 @@ End Sub
 '           : Microsoft Access does not provide a way to do this programatically.
 '           : Helpful links: https://stackoverflow.com/questions/26523619
 '           : and https://stackoverflow.com/questions/27366038
+'           : https://support.microsoft.com/en-us/office/customize-the-navigation-pane-ccfb0ee7-d72f-4923-b4fb-ed6c15484244
 '---------------------------------------------------------------------------------------
 '
 Private Sub IDbComponent_Import(strFile As String)
 
     Dim dFile As Dictionary
     Dim intGroup As Integer
+    Dim intCategory As Integer
     Dim dGroup As Dictionary
+    Dim dCategory As Dictionary
     Dim lngGroupID As Long
+    Dim lngCategoryID As Long
     Dim intObject As Integer
     Dim dObject As Dictionary
+    Dim lngCategory As Long
     Dim lngObjectID As Long
     Dim lngLinkID As Long
     
+    ' Only import files with the correct extension.
+    If Not strFile Like "*.json" Then Exit Sub
+
     Set dFile = ReadJsonFile(strFile)
     If Not dFile Is Nothing Then
-        If dFile("Items").Exists("Groups") Then
-            For intGroup = 1 To dFile("Items")("Groups").Count
-                Set dGroup = dFile("Items")("Groups")(intGroup)
-                ' Add additional field values for new record
-                dGroup.Add "GroupCategoryID", 3
-                dGroup.Add "Object Type Group", -1
-                dGroup.Add "ObjectID", 0
-                ' Check for existing group with this name. (Such as Unassigned Objects)
-                lngGroupID = Nz(DLookup("Id", "MSysNavPaneGroups", "GroupCategoryID=3 AND Name=""" & dGroup("Name") & """"), 0)
-                If lngGroupID = 0 Then lngGroupID = LoadRecord("MSysNavPaneGroups", dGroup)
-                For intObject = 1 To dGroup("Objects").Count
-                    Set dObject = dGroup("Objects")(intObject)
-                    lngObjectID = Nz(DLookup("Id", "MSysObjects", "Name=""" & dObject("Name") & """ AND Type=" & dObject("Type")), 0)
-                    If lngObjectID <> 0 Then
-                        dObject.Add "ObjectID", lngObjectID
-                        dObject.Add "GroupID", lngGroupID
-                        ' Change name to the name defined in this group. (Could be different from the object name)
-                        dObject("Name") = dObject("NameInGroup")
-                        ' Should not already be a link, but just in case...
-                        lngLinkID = Nz(DLookup("Id", "MSysNavPaneGroupToObjects", "ObjectID=" & lngObjectID & " AND GroupID = " & lngGroupID), 0)
-                        If lngLinkID = 0 Then lngLinkID = LoadRecord("MSysNavPaneGroupToObjects", dObject)
-                    End If
-                Next intObject
-            Next intGroup
+    
+        ' Upgrade from any previous formats
+        Set m_dItems = dFile
+        IDbComponent_Upgrade
+        
+        ' Remove any existing custom groups (Some may be automatically created with a new database)
+        ClearExistingNavGroups
+    
+        ' Import custom navigation categories/groups
+        If m_dItems("Items").Exists("Categories") Then
+            
+            ' Loop through custom categories
+            For intCategory = 1 To m_dItems("Items")("Categories").Count
+                Set dCategory = m_dItems("Items")("Categories")(intCategory)
+                ' Check for existing category with this name
+                lngCategoryID = Nz(DLookup("Id", "MSysNavPaneGroupCategories", "Type=4 and Name=""" & dCategory("Name") & """"), 0)
+                If lngCategoryID = 0 Then
+                    ' Add additional field values and create record
+                    dCategory.Add "Type", 4
+                    lngCategoryID = LoadRecord("MSysNavPaneGroupCategories", dCategory)
+                End If
+                ' Make sure we got a category record
+                If lngCategoryID = 0 Then
+                    Log.Error eelError, _
+                        "Could not create custom category record for " & dCategory("Name") & " in MSysNavPaneGroupCategories.", _
+                        ModuleName & ".Import"
+                    Exit Sub
+                End If
+        
+                ' Loop through groups in category
+                For intGroup = 1 To m_dItems("Items")("Categories")(intCategory)("Groups").Count
+                    Set dGroup = m_dItems("Items")("Categories")(intCategory)("Groups")(intGroup)
+                    ' Add additional field values for new record
+                    dGroup.Add "GroupCategoryID", lngCategoryID
+                    dGroup.Add "Object Type Group", -1
+                    dGroup.Add "ObjectID", 0
+                    ' Check for existing group with this name. (Such as Unassigned Objects)
+                    lngGroupID = Nz(DLookup("Id", "MSysNavPaneGroups", "GroupCategoryID=" & lngCategoryID & " AND Name=""" & dGroup("Name") & """"), 0)
+                    If lngGroupID = 0 Then lngGroupID = LoadRecord("MSysNavPaneGroups", dGroup)
+                    For intObject = 1 To dGroup("Objects").Count
+                        Set dObject = dGroup("Objects")(intObject)
+                        lngObjectID = Nz(DLookup("Id", "MSysObjects", "Name=""" & dObject("Name") & """ AND Type=" & dObject("Type")), 0)
+                        If lngObjectID <> 0 Then
+                            dObject.Add "ObjectID", lngObjectID
+                            dObject.Add "GroupID", lngGroupID
+                            ' Change name to the name defined in this group. (Could be different from the object name)
+                            dObject("Name") = dObject("NameInGroup")
+                            ' Should not already be a link, but just in case...
+                            lngLinkID = Nz(DLookup("Id", "MSysNavPaneGroupToObjects", "ObjectID=" & lngObjectID & " AND GroupID = " & lngGroupID), 0)
+                            If lngLinkID = 0 Then lngLinkID = LoadRecord("MSysNavPaneGroupToObjects", dObject)
+                        End If
+                    Next intObject
+                Next intGroup
+            Next intCategory
         End If
     End If
+
+End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : ClearExistingNavGroups
+' Author    : Adam Waller
+' Date      : 2/22/2021
+' Purpose   : Clears existing custom groups/categories (Used before importing)
+'---------------------------------------------------------------------------------------
+'
+Private Sub ClearExistingNavGroups()
+
+    Dim dbs As DAO.Database
+    Dim rst As DAO.Recordset
+    Dim strSql As String
     
+    If DebugMode Then On Error GoTo 0 Else On Error Resume Next
+    
+    ' Get SQL for query of NavPaneGroup objects
+    Set dbs = CodeDb
+    strSql = dbs.QueryDefs("qryNavPaneGroups").SQL
+        
+    ' Look up list of custom categories
+    Set dbs = CurrentDb
+    Set rst = dbs.OpenRecordset(strSql, dbOpenSnapshot)
+    
+    With rst
+        Do While Not .EOF
+            ' Remove records from three tables
+            If Nz(!LinkID, 0) <> 0 Then dbs.Execute "delete from MSysNavPaneGroupToObjects where id=" & Nz(!LinkID, 0), dbFailOnError
+            If Nz(!GroupID, 0) <> 0 Then dbs.Execute "delete from MSysNavPaneGroups where id=" & Nz(!GroupID, 0), dbFailOnError
+            If Nz(!CategoryID, 0) <> 0 Then dbs.Execute "delete from MSysNavPaneGroupCategories where id=" & Nz(!CategoryID, 0), dbFailOnError
+            .MoveNext
+        Loop
+        .Close
+    End With
+
+    CatchAny eelError, "Error clearing existing navigation pane groups.", ModuleName & ".ClearExisting"
+    
+End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : Merge
+' Author    : Adam Waller
+' Date      : 11/21/2020
+' Purpose   : Merge the source file into the existing database, updating or replacing
+'           : any existing object.
+'---------------------------------------------------------------------------------------
+'
+Private Sub IDbComponent_Merge(strFile As String)
+
 End Sub
 
 
@@ -131,13 +224,16 @@ End Function
 ' Purpose   : Return a collection of class objects represented by this component type.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_GetAllFromDB() As Collection
+Private Function IDbComponent_GetAllFromDB(Optional blnModifiedOnly As Boolean = False) As Collection
 
     Dim dbs As DAO.Database
     Dim rst As DAO.Recordset
     Dim strSql As String
+    Dim strCategory As String
     Dim strGroup As String
+    Dim colCategories As Collection
     Dim colGroups As Collection
+    Dim dCategory As Dictionary
     Dim dGroup As Dictionary
     Dim colObjects As Collection
     Dim dObject As Dictionary
@@ -147,6 +243,7 @@ Private Function IDbComponent_GetAllFromDB() As Collection
 
         Set m_AllItems = New Collection
         Set m_dItems = New Dictionary
+        Set colCategories = New Collection
         Set colGroups = New Collection
         m_Count = 0
         
@@ -161,7 +258,24 @@ Private Function IDbComponent_GetAllFromDB() As Collection
         ' Loop through records
         With rst
             Do While Not .EOF
-                
+            
+                ' Check for change in category name
+                If Nz(!CategoryName) <> strCategory Then
+                    ' Finish recording any previous category
+                    If strCategory <> vbNullString Then
+                        dCategory.Add "Groups", colGroups
+                        colCategories.Add dCategory
+                    End If
+                    ' Set up new category
+                    'Set colCategories = New Collection
+                    Set colGroups = New Collection
+                    strCategory = Nz(!CategoryName)
+                    Set dCategory = New Dictionary
+                    dCategory.Add "Name", strCategory
+                    dCategory.Add "Flags", Nz(!CategoryFlags, 0)
+                    dCategory.Add "Position", Nz(!CategoryPosition, 0)
+                End If
+                                   
                 ' Check for change in group name.
                 If Nz(!GroupName) <> strGroup Then
                     ' Finish recording any previous group
@@ -177,7 +291,7 @@ Private Function IDbComponent_GetAllFromDB() As Collection
                     dGroup.Add "Flags", Nz(!GroupFlags, 0)
                     dGroup.Add "Position", Nz(!GroupPosition, 0)
                 End If
-            
+
                 ' Add any item listed in this group
                 If Nz(!ObjectName) = vbNullString Then
                     ' Saved group with no items.
@@ -198,12 +312,17 @@ Private Function IDbComponent_GetAllFromDB() As Collection
                 .MoveNext
             Loop
             .Close
-            ' Close out last group and add to items dictionary
+            ' Close out last group and category, and add items
+            ' to output dictionary
             If strGroup <> vbNullString Then
                 dGroup.Add "Objects", colObjects
                 colGroups.Add dGroup
             End If
-            m_dItems.Add "Groups", colGroups
+            If strCategory <> vbNullString Then
+                dCategory.Add "Groups", colGroups
+                colCategories.Add dCategory
+                m_dItems.Add "Categories", colCategories
+            End If
         End With
             
         ' Add reference to this class.
@@ -224,8 +343,9 @@ End Function
 ' Purpose   : Return a list of file names to import for this component type.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_GetFileList() As Collection
-    Set IDbComponent_GetFileList = GetFilePathsInFolder(IDbComponent_SourceFile)
+Private Function IDbComponent_GetFileList(Optional blnModifiedOnly As Boolean = False) As Collection
+    Set IDbComponent_GetFileList = New Collection
+    If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_GetFileList.Add IDbComponent_SourceFile
 End Function
 
 
@@ -241,6 +361,19 @@ Private Sub IDbComponent_ClearOrphanedSourceFiles()
         If FSO.FileExists(IDbComponent_SourceFile) Then DeleteFile IDbComponent_SourceFile, True
     End If
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : IsModified
+' Author    : Adam Waller
+' Date      : 11/21/2020
+' Purpose   : Returns true if the object in the database has been modified since
+'           : the last export of the object.
+'---------------------------------------------------------------------------------------
+'
+Public Function IDbComponent_IsModified() As Boolean
+
+End Function
 
 
 '---------------------------------------------------------------------------------------
@@ -280,7 +413,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Property Get IDbComponent_Category() As String
-    IDbComponent_Category = "nav pane groups"
+    IDbComponent_Category = "Nav Pane Groups"
 End Property
 
 
@@ -326,7 +459,7 @@ End Property
 ' Purpose   : Return a count of how many items are in this category.
 '---------------------------------------------------------------------------------------
 '
-Private Property Get IDbComponent_Count() As Long
+Private Property Get IDbComponent_Count(Optional blnModifiedOnly As Boolean = False) As Long
     IDbComponent_GetAllFromDB
     IDbComponent_Count = m_Count
 End Property
@@ -352,7 +485,47 @@ End Property
 '---------------------------------------------------------------------------------------
 '
 Private Sub IDbComponent_Upgrade()
-    ' No upgrade needed.
+    
+    Dim dNew As Dictionary
+    Dim dNew2 As Dictionary
+    Dim colNew As Collection
+    Dim dblVersion As Double
+    
+    If DebugMode Then On Error GoTo 0 Else On Error Resume Next
+    
+    ' Get version
+    If Not m_dItems Is Nothing Then
+        If m_dItems("Info").Exists("Export File Format") Then
+            dblVersion = CDbl(m_dItems("Info")("Export File Format"))
+        End If
+    End If
+    
+    ' Add Category section (2/22/2021)
+    If dblVersion < 1.1 Then
+        Set dNew = New Dictionary
+        Set colNew = New Collection
+        ' Build generic Custom category
+        dNew.Add "Name", "Custom"
+        dNew.Add "Flags", 0
+        dNew.Add "Position", 2
+        dNew.Add "Groups", m_dItems("Items")("Groups")
+        colNew.Add dNew
+        Set dNew2 = New Dictionary
+        dNew2.Add "Categories", colNew
+        Set m_dItems = New Dictionary
+        m_dItems.Add "Items", dNew2
+    End If
+    
+    ' Check for newer export file that this add-in version doesn't support
+    If dblVersion > FormatVersion Then
+        Log.Error eelError, "Format " & dblVersion & " of " & IDbComponent_SourceFile & _
+            " not supported by this version of the add-in. Please update the add-in to import this file.", _
+            ModuleName & ".Upgrade"
+    End If
+    
+    ' Report any errors during upgrade process
+    CatchAny eelError, "Error upgrading navigation pane groups.", ModuleName & ".Export", True, True
+
 End Sub
 
 

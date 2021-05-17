@@ -12,8 +12,10 @@ Attribute VB_Exposed = False
 Option Compare Database
 Option Explicit
 
+Const ModuleName = "clsDbVbeReference"
+
 Private m_Ref As VBIDE.Reference
-Public AllItems As Collection
+Private m_AllItems As Collection
 
 
 ' This requires us to use all the public methods and properties of the implemented class
@@ -32,43 +34,15 @@ Implements IDbComponent
 '
 Private Sub IDbComponent_Export()
 
-    Dim dRef As Dictionary
     Dim dItems As Dictionary
-    Dim cRef As clsDbVbeReference
-    Dim ref As VBIDE.Reference
-    Dim strPath As String
     
-    Set dItems = New Dictionary
-    
-    ' Loop through cached references (Duplicates have already been removed)
-    For Each cRef In Me.AllItems
-        Set dRef = New Dictionary
-        Set ref = cRef.Parent.DbObject
-        With dRef
-            If ref.Type = vbext_rk_Project Then
-                ' references of types mdb,accdb,mde etc don't have a GUID
-                strPath = GetRelativePath(ref.FullPath)
-                If strPath <> ref.FullPath Or Options.Security = esNone Then
-                    ' Use relative path, or full path if not secured.
-                    .Add "FullPath", strPath
-                Else
-                    ' Found a non-relative path.
-                    .Add "File", FSO.GetFileName(ref.FullPath)
-                    If Options.Security <> esRemove Then .Add "FullPath", Secure(ref.FullPath)
-                End If
-            Else
-                If ref.Guid <> vbNullString Then .Add "GUID", ref.Guid
-                .Add "Version", CStr(ref.Major) & "." & CStr(ref.Minor)
-            End If
-        End With
-        dItems.Add ref.Name, dRef
-    Next cRef
-    
-    ' Sort dictionary by keys, so the order is the same in exported file
-    Set dItems = SortDictionaryByKeys(dItems)
-    
+    Set dItems = GetDictionary
+
     ' Write to a json file.
-    WriteJsonFile Me, dItems, IDbComponent_SourceFile, "VBE References"
+    WriteJsonFile TypeName(Me), dItems, IDbComponent_SourceFile, "VBE References"
+    
+    ' Update index
+    VCSIndex.Update Me, eatExport, GetDictionaryHash(dItems)
     
 End Sub
 
@@ -92,6 +66,11 @@ Private Sub IDbComponent_Import(strFile As String)
     Dim strPath As String
     Dim dExisting As Dictionary
     
+    ' Only import files with the correct extension.
+    If Not strFile Like "*.json" Then Exit Sub
+
+    If DebugMode Then On Error GoTo 0 Else On Error Resume Next
+    
     ' Read in references from file
     Set dFile = ReadJsonFile(strFile)
     If Not dFile Is Nothing Then
@@ -112,18 +91,62 @@ Private Sub IDbComponent_Import(strFile As String)
                     varVersion = Split(dRef("Version"), ".")
                     AddFromGuid proj, CStr(varKey), dRef("GUID"), CLng(varVersion(0)), CLng(varVersion(1))
                 ElseIf dRef.Exists("FullPath") Then
-                    strPath = GetPathFromRelative(Decrypt(dRef("FullPath")))
-                    If FSO.FileExists(strPath) Then
-                        proj.References.AddFromFile strPath
+                    strPath = GetPathFromRelative(dRef("FullPath"))
+                    If Not FSO.FileExists(strPath) Then
+                        Log.Error eelError, "File not found. Unable to add reference to " & strPath, "clsVbeReference.Import"
                     Else
-                        Log.Add "ERROR: Failed to add reference " & strPath
+                        proj.References.AddFromFile strPath
+                        CatchAny eelError, "Adding VBE reference from " & strPath, ModuleName & ".Import"
                     End If
                 End If
             End If
         Next varKey
     End If
     
+    ' Update index
+    VCSIndex.Update Me, eatImport, GetDictionaryHash(GetDictionary)
+    
+    CatchAny eelError, "Importing VBE references", ModuleName & ".Import"
+    
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : GetDictionary
+' Author    : Adam Waller
+' Date      : 12/1/2020
+' Purpose   : Return a dictionary of the VBE references
+'---------------------------------------------------------------------------------------
+'
+Private Function GetDictionary() As Dictionary
+
+    Dim dRef As Dictionary
+    Dim cItem As IDbComponent
+    Dim cRef As clsDbVbeReference
+    Dim ref As VBIDE.Reference
+    Dim strPath As String
+    
+    Set GetDictionary = New Dictionary
+    With GetDictionary
+        ' Loop through cached references (Duplicates have already been removed)
+        For Each cItem In IDbComponent_GetAllFromDB
+            Set cRef = cItem
+            Set dRef = New Dictionary
+            Set ref = cRef.Parent.DbObject
+            With dRef
+                If ref.Type = vbext_rk_Project Then
+                    ' references of types mdb,accdb,mde etc don't have a GUID
+                    .Add "FullPath", GetRelativePath(ref.FullPath)
+                Else
+                    If ref.Guid <> vbNullString Then .Add "GUID", ref.Guid
+                    .Add "Version", CStr(ref.Major) & "." & CStr(ref.Minor)
+                End If
+            End With
+            .Add ref.Name, dRef
+        Next cItem
+    End With
+    
+End Function
 
 
 '---------------------------------------------------------------------------------------
@@ -182,41 +205,57 @@ End Sub
 
 
 '---------------------------------------------------------------------------------------
+' Procedure : Merge
+' Author    : Adam Waller
+' Date      : 11/21/2020
+' Purpose   : Merge the source file into the existing database, updating or replacing
+'           : any existing object.
+'---------------------------------------------------------------------------------------
+'
+Private Sub IDbComponent_Merge(strFile As String)
+
+    ' Remove existing references first.
+    RemoveNonBuiltInReferences
+    
+    ' Import the references
+    IDbComponent_Import strFile
+    
+End Sub
+
+
+'---------------------------------------------------------------------------------------
 ' Procedure : GetAllFromDB
 ' Author    : Adam Waller
 ' Date      : 4/23/2020
 ' Purpose   : Return a collection of class objects represented by this component type.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_GetAllFromDB() As Collection
+Private Function IDbComponent_GetAllFromDB(Optional blnModifiedOnly As Boolean = False) As Collection
     
     Dim ref As VBIDE.Reference
-    Dim cRef As clsDbVbeReference
-    Dim colNames As Collection
+    Dim cRef As IDbComponent
+    Dim dNames As Dictionary
 
     ' Build collection if not already cached
-    If Me.AllItems Is Nothing Then
-        Set Me.AllItems = New Collection
-        Set colNames = New Collection
+    If m_AllItems Is Nothing Then
+        Set m_AllItems = New Collection
+        Set dNames = New Dictionary
         For Each ref In GetVBProjectForCurrentDB.References
             If Not ref.BuiltIn Then
-                Set cRef = New clsDbVbeReference
-                Set cRef.Parent.DbObject = ref
-                ' Export outputs single file, so every item needs a reference
-                ' to the whole collection of references.
-                Set cRef.AllItems = Me.AllItems
-                ' Don't attempt add two references with the same name.
-                ' (Take the first one, but ignore subsequent ones with the same name.)
-                If Not InCollection(colNames, ref.Name) Then
-                    Me.AllItems.Add cRef, ref.Name
-                    colNames.Add ref.Name
+                If Not dNames.Exists(ref.Name) Then
+                    Set cRef = New clsDbVbeReference
+                    Set cRef.DbObject = ref
+                    m_AllItems.Add cRef
+                    ' Don't attempt add two references with the same name, such as
+                    ' circular references to nested library database files.
+                    dNames.Add ref.Name, vbNullString
                 End If
             End If
         Next ref
     End If
 
     ' Return cached collection
-    Set IDbComponent_GetAllFromDB = Me.AllItems
+    Set IDbComponent_GetAllFromDB = m_AllItems
         
 End Function
 
@@ -228,9 +267,9 @@ End Function
 ' Purpose   : Return a list of file names to import for this component type.
 '---------------------------------------------------------------------------------------
 '
-Private Function IDbComponent_GetFileList() As Collection
+Private Function IDbComponent_GetFileList(Optional blnModifiedOnly As Boolean = False) As Collection
     Set IDbComponent_GetFileList = New Collection
-    IDbComponent_GetFileList.Add IDbComponent_SourceFile
+    If FSO.FileExists(IDbComponent_SourceFile) Then IDbComponent_GetFileList.Add IDbComponent_SourceFile
 End Function
 
 
@@ -246,6 +285,19 @@ Private Sub IDbComponent_ClearOrphanedSourceFiles()
     strFile = IDbComponent_BaseFolder & "references.csv"
     If FSO.FileExists(strFile) Then DeleteFile strFile, True    ' Remove legacy file
 End Sub
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : IsModified
+' Author    : Adam Waller
+' Date      : 11/21/2020
+' Purpose   : Returns true if the object in the database has been modified since
+'           : the last export of the object.
+'---------------------------------------------------------------------------------------
+'
+Public Function IDbComponent_IsModified() As Boolean
+
+End Function
 
 
 '---------------------------------------------------------------------------------------
@@ -286,7 +338,7 @@ End Function
 '---------------------------------------------------------------------------------------
 '
 Private Property Get IDbComponent_Category() As String
-    IDbComponent_Category = "vbe references"
+    IDbComponent_Category = "VBE References"
 End Property
 
 
@@ -332,8 +384,8 @@ End Property
 ' Purpose   : Return a count of how many items are in this category.
 '---------------------------------------------------------------------------------------
 '
-Private Property Get IDbComponent_Count() As Long
-    IDbComponent_Count = IDbComponent_GetAllFromDB.Count
+Private Property Get IDbComponent_Count(Optional blnModifiedOnly As Boolean = False) As Long
+    IDbComponent_Count = IDbComponent_GetAllFromDB(blnModifiedOnly).Count
 End Property
 
 
